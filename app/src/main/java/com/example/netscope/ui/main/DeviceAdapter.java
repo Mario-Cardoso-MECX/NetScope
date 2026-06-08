@@ -27,9 +27,17 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceView
 
     @Override
     public void onBindViewHolder(@NonNull DeviceViewHolder holder, int position) {
-        Device currentDevice = deviceList.get(position);
-        holder.tvName.setText(currentDevice.getName());
-        holder.tvIp.setText(currentDevice.getIp());
+        Device device = deviceList.get(position);
+        holder.tvName.setText(device.getName());
+        holder.tvIp.setText(device.getIp());
+
+        // ¡ESTO ES LO NUEVO! El clic en la tarjeta
+        holder.itemView.setOnClickListener(v -> {
+            android.content.Intent intent = new android.content.Intent(v.getContext(), com.example.netscope.ui.details.DetailsActivity.class);
+            intent.putExtra("TARGET_IP", device.getIp());
+            intent.putExtra("TARGET_NAME", device.getName());
+            v.getContext().startActivity(intent);
+        });
     }
 
     @Override
