@@ -11,4 +11,7 @@ public class Device {
 
     public String getName() { return name; }
     public String getIp() { return ip; }
+
+    public void setName(String name) { this.name = name; }
+
 }

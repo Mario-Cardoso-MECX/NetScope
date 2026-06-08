@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.netscope.R;
 import com.example.netscope.data.Device;
+import com.example.netscope.network.NsdResolver; // <-- IMPORTANTE: Agregamos a Abdul aquí
 import com.example.netscope.network.PingSweepEngine;
 import com.google.android.material.button.MaterialButton;
 
@@ -70,18 +71,36 @@ public class RadarFragment extends Fragment {
         btnStartScan.setText("ESCANEANDO...");
         Toast.makeText(getContext(), "Escaneando subred: " + subnet + "x", Toast.LENGTH_SHORT).show();
 
-        // Instanciamos TU motor de red
+        // =========================================================
+        // LA MAGIA DE ABDUL: Instanciamos el sabueso de nombres
+        // =========================================================
+        NsdResolver nsdResolver = new NsdResolver(getContext());
+        nsdResolver.startDiscovery((ip, name) -> {
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> {
+                    // Si el sabueso encuentra un nombre real, buscamos la IP en nuestra lista y lo actualizamos
+                    for (int i = 0; i < liveDeviceList.size(); i++) {
+                        Device device = liveDeviceList.get(i);
+                        if (device.getIp().equals(ip)) {
+                            device.setName(name);
+                            adapter.notifyItemChanged(i);
+                            break;
+                        }
+                    }
+                });
+            }
+        });
+
+        // Instanciamos TU motor de red (El de Cardoso)
         PingSweepEngine engine = new PingSweepEngine();
 
         engine.startScan(subnet, new PingSweepEngine.ScanListener() {
             @Override
-            public void onDeviceFound(String ip) {
-                // IMPORTANTE: Los hilos de red no pueden modificar la interfaz.
-                // Le pedimos permiso a la Activity principal para pintar la pantalla:
+            public void onDeviceFound(String ip, String name) {
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> {
-                        // Como el Dev 2 aún no hace el mDNS, ponemos "Dispositivo Detectado" temporalmente
-                        liveDeviceList.add(new Device("Dispositivo Detectado", ip));
+                        // Ahora inyectamos el nombre que encontró el Plan B directamente
+                        liveDeviceList.add(new Device(name, ip));
                         adapter.notifyItemInserted(liveDeviceList.size() - 1);
                     });
                 }
@@ -94,6 +113,9 @@ public class RadarFragment extends Fragment {
                         btnStartScan.setEnabled(true);
                         btnStartScan.setText("START QUICK SCAN");
                         Toast.makeText(getContext(), "Completado: " + activeIps.size() + " dispositivos", Toast.LENGTH_LONG).show();
+
+                        // Apagamos el sabueso al terminar para no drenar la batería del Cubot
+                        nsdResolver.stopDiscovery();
                     });
                 }
             }
