@@ -110,11 +110,35 @@ public class RadarFragment extends Fragment {
             public void onScanComplete(List<String> activeIps) {
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> {
+                        // 1. ALGORITMO DE ORDENAMIENTO DE IPs
+                        java.util.Collections.sort(liveDeviceList, new java.util.Comparator<Device>() {
+                            @Override
+                            public int compare(Device d1, Device d2) {
+                                try {
+                                    String[] parts1 = d1.getIp().split("\\.");
+                                    String[] parts2 = d2.getIp().split("\\.");
+                                    for (int i = 0; i < 4; i++) {
+                                        int p1 = Integer.parseInt(parts1[i]);
+                                        int p2 = Integer.parseInt(parts2[i]);
+                                        if (p1 != p2) {
+                                            return Integer.compare(p1, p2);
+                                        }
+                                    }
+                                } catch (Exception e) {
+                                    return 0;
+                                }
+                                return 0;
+                            }
+                        });
+
+                        // 2. Avisamos a la lista que los datos ya están ordenados
+                        adapter.notifyDataSetChanged();
+
+                        // 3. Restauramos los botones
                         btnStartScan.setEnabled(true);
                         btnStartScan.setText("START QUICK SCAN");
                         Toast.makeText(getContext(), "Completado: " + activeIps.size() + " dispositivos", Toast.LENGTH_LONG).show();
 
-                        // Apagamos el sabueso al terminar para no drenar la batería del Cubot
                         nsdResolver.stopDiscovery();
                     });
                 }
