@@ -4,9 +4,9 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -18,7 +18,8 @@ import java.net.InetAddress;
 
 public class ToolsFragment extends Fragment {
 
-    private EditText etTarget, etPingTarget;
+    // ¡Solo necesitamos UNO! Queda más profesional.
+    private EditText etTarget;
     private TextView tvResult;
 
     @Nullable
@@ -27,40 +28,53 @@ public class ToolsFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_tools, container, false);
 
         etTarget = view.findViewById(R.id.etTarget);
-        etPingTarget = view.findViewById(R.id.etPingTarget);
         tvResult = view.findViewById(R.id.tvResult);
 
-        Button btnDns = view.findViewById(R.id.btnDnsLookup);
-        Button btnPing = view.findViewById(R.id.btnPing);
+        // Enlazamos las tarjetas del Grid (View en lugar de Button)
+        View btnDns = view.findViewById(R.id.btnDnsLookup);
+        View btnPing = view.findViewById(R.id.btnPing);
+        View btnWhois = view.findViewById(R.id.btnWhois);
+        View btnTraceroute = view.findViewById(R.id.btnTraceroute);
 
+        // Asignamos las funciones reales
         btnDns.setOnClickListener(v -> performDnsLookup());
         btnPing.setOnClickListener(v -> performPing());
+
+        // Dejamos preparados los módulos futuros
+        btnWhois.setOnClickListener(v -> mostrarProximamente("WHOIS"));
+        btnTraceroute.setOnClickListener(v -> mostrarProximamente("TRACEROUTE"));
 
         return view;
     }
 
     private void performDnsLookup() {
         String target = etTarget.getText().toString().trim();
-        if (target.isEmpty()) return;
+        if (target.isEmpty()) {
+            etTarget.setError("Ingresa un objetivo primero");
+            return;
+        }
 
-        tvResult.setText("Resolviendo DNS...");
+        tvResult.setText("> Resolviendo DNS para " + target + "...\n");
 
         new Thread(() -> {
             try {
                 InetAddress address = InetAddress.getByName(target);
-                String result = "Host: " + address.getHostName() + "\nIP: " + address.getHostAddress();
+                String result = "> HOST:\n  " + address.getHostName() + "\n\n> IP:\n  " + address.getHostAddress();
                 if (getActivity() != null) getActivity().runOnUiThread(() -> tvResult.setText(result));
             } catch (Exception e) {
-                if (getActivity() != null) getActivity().runOnUiThread(() -> tvResult.setText("Error: No se pudo resolver."));
+                if (getActivity() != null) getActivity().runOnUiThread(() -> tvResult.setText("> Error: No se pudo resolver DNS."));
             }
         }).start();
     }
 
     private void performPing() {
-        String target = etPingTarget.getText().toString().trim();
-        if (target.isEmpty()) return;
+        String target = etTarget.getText().toString().trim();
+        if (target.isEmpty()) {
+            etTarget.setError("Ingresa un objetivo primero");
+            return;
+        }
 
-        tvResult.setText("Haciendo Ping a " + target + "...");
+        tvResult.setText("> Haciendo Ping a " + target + "...\n");
 
         new Thread(() -> {
             try {
@@ -70,13 +84,17 @@ public class ToolsFragment extends Fragment {
                 long time = System.currentTimeMillis() - start;
 
                 String result = reachable ?
-                        "Respuesta de " + target + ":\nHost Alcanzable\nTiempo: " + time + "ms" :
-                        "Tiempo de espera agotado para " + target;
+                        "> RESPUESTA DE " + target + ":\n  [OK] Host Alcanzable\n  [TIEMPO] " + time + "ms" :
+                        "> ERROR: Tiempo de espera agotado para " + target;
 
                 if (getActivity() != null) getActivity().runOnUiThread(() -> tvResult.setText(result));
             } catch (Exception e) {
-                if (getActivity() != null) getActivity().runOnUiThread(() -> tvResult.setText("Error en Ping: " + e.getMessage()));
+                if (getActivity() != null) getActivity().runOnUiThread(() -> tvResult.setText("> Error en Ping: " + e.getMessage()));
             }
         }).start();
+    }
+
+    private void mostrarProximamente(String modulo) {
+        Toast.makeText(getContext(), "Módulo " + modulo + " en desarrollo", Toast.LENGTH_SHORT).show();
     }
 }
