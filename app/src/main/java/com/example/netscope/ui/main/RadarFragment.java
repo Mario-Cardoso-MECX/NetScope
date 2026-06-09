@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.netscope.R;
 import com.example.netscope.data.Device;
+import com.example.netscope.data.NetScopeDbHelper;
 import com.example.netscope.network.NsdResolver; // <-- IMPORTANTE: Agregamos a Abdul aquí
 import com.example.netscope.network.PingSweepEngine;
 import com.google.android.material.button.MaterialButton;
@@ -136,6 +137,13 @@ public class RadarFragment extends Fragment {
 
                         // 3. Restauramos los botones
                         btnStartScan.setEnabled(true);
+
+                        // ==========================================
+                        // GUARDAR EN EL HISTORIAL (LÓGICA DEV 5)
+                        // ==========================================
+                        NetScopeDbHelper dbHelper = new NetScopeDbHelper(getContext());
+                        dbHelper.guardarEscaneoCompleto(liveDeviceList); // Una sola ejecución a prueba de fallos
+
                         btnStartScan.setText("START QUICK SCAN");
                         Toast.makeText(getContext(), "Completado: " + activeIps.size() + " dispositivos", Toast.LENGTH_LONG).show();
 

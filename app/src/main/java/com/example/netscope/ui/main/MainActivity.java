@@ -3,7 +3,11 @@ package com.example.netscope.ui.main;
 import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
+
 import com.example.netscope.R;
+import com.example.netscope.ui.history.HistoryFragment;
+import com.example.netscope.ui.settings.SettingsFragment;
+import com.example.netscope.ui.tools.ToolsFragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 public class MainActivity extends AppCompatActivity {
@@ -22,19 +26,16 @@ public class MainActivity extends AppCompatActivity {
             Fragment selectedFragment = null;
             int itemId = item.getItemId();
 
+            // AQUÍ ESTABA EL ERROR: Ya quitamos los comentarios para habilitar los botones
             if (itemId == R.id.nav_radar) {
                 selectedFragment = new RadarFragment();
-            }
-            // CUANDO TUS COMPAÑEROS HAGAN ESTOS FRAGMENTOS, QUITAS LOS COMENTARIOS
-            /*
-            else if (itemId == R.id.nav_tools) {
+            } else if (itemId == R.id.nav_tools) {
                 selectedFragment = new ToolsFragment();
             } else if (itemId == R.id.nav_history) {
                 selectedFragment = new HistoryFragment();
             } else if (itemId == R.id.nav_settings) {
                 selectedFragment = new SettingsFragment();
             }
-            */
 
             if (selectedFragment != null) {
                 getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container, selectedFragment).commit();
