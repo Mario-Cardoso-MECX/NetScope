@@ -1,4 +1,8 @@
 package com.example.netscope.ui.tools;
 
-public class ToolsFragment {
+import androidx.fragment.app.Fragment;
+
+// Le agregamos "extends Fragment" para que deje de marcar error
+public class ToolsFragment extends Fragment {
+    // Aquí el Dev 4 programará su parte después
 }

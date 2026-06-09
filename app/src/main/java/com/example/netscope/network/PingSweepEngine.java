@@ -14,7 +14,7 @@ public class PingSweepEngine {
     private static final int TIMEOUT_MS = 500;
     private static final int NUM_THREADS = 50;
 
-    // ¡MODIFICADO! Ahora exige IP y Nombre
+    // Ahora exige IP y Nombre
     public interface ScanListener {
         void onDeviceFound(String ip, String name);
         void onScanComplete(List<String> activeIps);
@@ -36,9 +36,8 @@ public class PingSweepEngine {
 
                     if (address.isReachable(TIMEOUT_MS)) {
 
-                        // EL PLAN B: Resolución DNS Inversa
+                        // EL PLAN B: Resolución DNS Inversa (Causante del lag)
                         String hostName = address.getHostName();
-                        // Si el router no sabe el nombre, devuelve la misma IP. Lo validamos:
                         String finalName = (hostName != null && !hostName.equals(targetIp)) ? hostName : "Dispositivo Detectado";
 
                         Log.d(TAG, "¡Host Vivo!: " + targetIp + " | Nombre: " + finalName);
@@ -57,15 +56,21 @@ public class PingSweepEngine {
             });
         }
 
+        // =================================================================
+        // LA SOLUCIÓN: Tolerancia al lag y ejecución obligatoria del cierre
+        // =================================================================
         executor.shutdown();
         new Thread(() -> {
             try {
-                if (executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                    Log.d(TAG, "Escaneo finalizado.");
-                    if (listener != null) {
-                        listener.onScanComplete(activeIps);
-                    }
+                // Le damos hasta 60 segundos de paciencia a los hilos para resolver los DNS lentos
+                executor.awaitTermination(60, TimeUnit.SECONDS);
+
+                // ¡SIN CONDICIONES! Terminen en 2 o en 20 segundos, siempre se ejecutará este bloque
+                Log.d(TAG, "Escaneo finalizado. Liberando interfaz y guardando...");
+                if (listener != null) {
+                    listener.onScanComplete(activeIps);
                 }
+
             } catch (InterruptedException e) {
                 Log.e(TAG, "El escaneo fue interrumpido", e);
             }
