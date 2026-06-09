@@ -8,6 +8,7 @@ import com.example.netscope.R;
 import com.example.netscope.ui.history.HistoryFragment;
 import com.example.netscope.ui.settings.SettingsFragment;
 import com.example.netscope.ui.tools.ToolsFragment;
+import com.example.netscope.utils.PermissionHelper;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 public class MainActivity extends AppCompatActivity {
@@ -16,6 +17,13 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // ========================================================
+        // ¡ESTO ES LO NUEVO! Pedimos permisos al abrir la app
+        // ========================================================
+        if (!PermissionHelper.hasAllPermissions(this)) {
+            PermissionHelper.requestPermissions(this);
+        }
 
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
 
