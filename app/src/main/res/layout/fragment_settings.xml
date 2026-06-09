@@ -13,7 +13,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="CYBERSWEEP"
+            android:text="@string/app_name"
             android:textColor="#00FF7F"
             android:textSize="12sp"
             android:textStyle="bold"
@@ -22,7 +22,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Settings"
+            android:text="@string/settings_title"
             android:textColor="#FFFFFF"
             android:textSize="28sp"
             android:textStyle="bold"
@@ -31,7 +31,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="PREFERENCES"
+            android:text="@string/pref_category_network"
             android:textColor="#888888"
             android:textSize="12sp"
             android:textStyle="bold"
@@ -50,8 +50,8 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Wake on LAN" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="16sp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Send magic packets" android:textColor="#888888" android:textSize="12sp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/pref_wol_title" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="16sp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/pref_wol_desc" android:textColor="#888888" android:textSize="12sp"/>
             </LinearLayout>
             <com.google.android.material.switchmaterial.SwitchMaterial android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true"/>
         </LinearLayout>
@@ -68,10 +68,14 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Threat Alerts" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="16sp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Push notifications" android:textColor="#888888" android:textSize="12sp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/pref_alerts_title" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="16sp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/pref_alerts_desc" android:textColor="#888888" android:textSize="12sp"/>
             </LinearLayout>
-            <com.google.android.material.switchmaterial.SwitchMaterial android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true"/>
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/switchAlerts"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"/>
         </LinearLayout>
 
         <LinearLayout
@@ -86,8 +90,8 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Auto-Scan" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="16sp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Every 30 minutes" android:textColor="#888888" android:textSize="12sp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/pref_autoscan_title" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="16sp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/pref_autoscan_desc" android:textColor="#888888" android:textSize="12sp"/>
             </LinearLayout>
             <com.google.android.material.switchmaterial.SwitchMaterial android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="false"/>
         </LinearLayout>
@@ -95,7 +99,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="ABOUT"
+            android:text="@string/pref_category_about"
             android:textColor="#888888"
             android:textSize="12sp"
             android:textStyle="bold"
@@ -111,12 +115,12 @@
             android:layout_marginBottom="32dp">
 
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="12dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Version" android:textColor="#FFFFFF" android:textStyle="bold"/>
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/pref_version" android:textColor="#FFFFFF" android:textStyle="bold"/>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="2.4.1" android:textColor="#00FF7F" android:textStyle="bold"/>
             </LinearLayout>
 
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Build" android:textColor="#FFFFFF" android:textStyle="bold"/>
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/pref_build" android:textColor="#FFFFFF" android:textStyle="bold"/>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="20260527" android:textColor="#888888"/>
             </LinearLayout>
         </LinearLayout>
@@ -125,7 +129,7 @@
             android:id="@+id/btnExport"
             android:layout_width="match_parent"
             android:layout_height="60dp"
-            android:text="EXPORTAR REPORTE"
+            android:text="@string/btn_export_report"
             android:backgroundTint="#00FF7F"
             android:textColor="#0D1117"
             android:textStyle="bold"/>

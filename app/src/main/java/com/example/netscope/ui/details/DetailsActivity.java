@@ -58,8 +58,8 @@ public class DetailsActivity extends AppCompatActivity {
         if (targetIp == null) return;
 
         btnAudit.setEnabled(false);
-        btnAudit.setText("BOMBARDEANDO PUERTOS...");
-        Toast.makeText(this, "Lanzando escáner TCP...", Toast.LENGTH_SHORT).show();
+        btnAudit.setText(getString(R.string.btn_audit_loading));
+        Toast.makeText(this, getString(R.string.toast_audit_start), Toast.LENGTH_SHORT).show();
 
         // Limpiamos la consola visualmente
         resetearTextos();
@@ -76,8 +76,8 @@ public class DetailsActivity extends AppCompatActivity {
             public void onScanFinished(List<Integer> openPorts) {
                 runOnUiThread(() -> {
                     btnAudit.setEnabled(true);
-                    btnAudit.setText("AUDITAR PUERTOS TCP");
-                    Toast.makeText(DetailsActivity.this, "Auditoría finalizada. " + openPorts.size() + " abiertos.", Toast.LENGTH_LONG).show();
+                    btnAudit.setText(getString(R.string.btn_audit_ports));
+                    Toast.makeText(DetailsActivity.this, getString(R.string.toast_audit_finish, openPorts.size()), Toast.LENGTH_LONG).show();
                 });
             }
         });
@@ -98,10 +98,10 @@ public class DetailsActivity extends AppCompatActivity {
 
         if (targetText != null) {
             if (isOpen) {
-                targetText.setText(baseText + "ABIERTO");
+                targetText.setText(baseText + getString(R.string.port_open));
                 targetText.setTextColor(Color.parseColor("#00FF7F")); // Verde hacker
             } else {
-                targetText.setText(baseText + "CERRADO");
+                targetText.setText(baseText + getString(R.string.port_closed));
                 targetText.setTextColor(Color.parseColor("#FF5555")); // Rojo
             }
         }
@@ -109,11 +109,13 @@ public class DetailsActivity extends AppCompatActivity {
 
     private void resetearTextos() {
         int colorGris = Color.parseColor("#888888");
-        p21.setText("[ 21 ] FTP - Escaneando..."); p21.setTextColor(colorGris);
-        p22.setText("[ 22 ] SSH - Escaneando..."); p22.setTextColor(colorGris);
-        p80.setText("[ 80 ] HTTP - Escaneando..."); p80.setTextColor(colorGris);
-        p443.setText("[ 443 ] HTTPS - Escaneando..."); p443.setTextColor(colorGris);
-        p3306.setText("[ 3306 ] MySQL - Escaneando..."); p3306.setTextColor(colorGris);
-        p3389.setText("[ 3389 ] RDP - Escaneando..."); p3389.setTextColor(colorGris);
+        String escaneando = getString(R.string.port_scanning);
+
+        p21.setText("[ 21 ] FTP - " + escaneando); p21.setTextColor(colorGris);
+        p22.setText("[ 22 ] SSH - " + escaneando); p22.setTextColor(colorGris);
+        p80.setText("[ 80 ] HTTP - " + escaneando); p80.setTextColor(colorGris);
+        p443.setText("[ 443 ] HTTPS - " + escaneando); p443.setTextColor(colorGris);
+        p3306.setText("[ 3306 ] MySQL - " + escaneando); p3306.setTextColor(colorGris);
+        p3389.setText("[ 3389 ] RDP - " + escaneando); p3389.setTextColor(colorGris);
     }
 }

@@ -82,15 +82,18 @@ public class HistoryFragment extends Fragment {
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             HistoryRecord record = data.get(position);
-            holder.tvName.setText(record.name != null ? record.name : "Desconocido");
+            holder.tvName.setText(record.name != null ? record.name : holder.itemView.getContext().getString(R.string.text_detected_device));
             holder.tvIp.setText(record.ip);
-            holder.tvTime.setText("Última vez visto: " + record.time);
-            holder.tvStatus.setText(record.status);
 
-            // La lógica visual del Dev 5: Intrusos en Rojo
+            // Inyectamos la fecha dinámica en el string
+            holder.tvTime.setText(holder.itemView.getContext().getString(R.string.history_last_seen, record.time));
+
+            // La lógica visual del Dev 5 leyendo del XML
             if (record.status.contains("INTRUSO")) {
+                holder.tvStatus.setText(holder.itemView.getContext().getString(R.string.status_intruso));
                 holder.tvStatus.setTextColor(Color.parseColor("#FF5555"));
             } else {
+                holder.tvStatus.setText(holder.itemView.getContext().getString(R.string.status_conocido));
                 holder.tvStatus.setTextColor(Color.parseColor("#00FF7F"));
             }
         }

@@ -1,3 +1,46 @@
 <resources>
     <string name="app_name">NetScope</string>
+
+    <string name="nav_radar">Radar</string>
+    <string name="nav_tools">Herramientas</string>
+    <string name="nav_history">Historial</string>
+    <string name="nav_settings">Ajustes</string>
+
+    <string name="radar_title">RADAR DE RED</string>
+    <string name="radar_subtitle">Dispositivos Conectados</string>
+    <string name="btn_start_scan">INICIAR ESCANEO RÁPIDO</string>
+    <string name="btn_scanning">ESCANEANDO RED...</string>
+    <string name="toast_wifi_error">Error: Conéctate a una red Wi-Fi</string>
+    <string name="toast_scan_complete">Escaneo completado: %1$d dispositivos activos</string>
+    <string name="text_detected_device">Dispositivo Detectado</string>
+
+    <string name="audit_title">RESULTADOS DEL ESCANEO</string>
+    <string name="btn_audit_ports">AUDITAR PUERTOS TCP</string>
+    <string name="btn_audit_loading">BOMBARDEANDO PUERTOS...</string>
+    <string name="toast_audit_start">Lanzando escáner TCP...</string>
+    <string name="toast_audit_finish">Auditoría finalizada. %1$d puertos abiertos.</string>
+    <string name="port_waiting">Esperando...</string>
+    <string name="port_scanning">Escaneando...</string>
+    <string name="port_open">ABIERTO / VULNERABLE</string>
+    <string name="port_closed">CERRADO / SEGURO</string>
+
+    <string name="history_tag">LOG DE AUDITORÍA</string>
+    <string name="history_title">Historial de Red</string>
+    <string name="status_intruso">NUEVO / POSIBLE INTRUSO</string>
+    <string name="status_conocido">CONOCIDO</string>
+    <string name="history_last_seen">Última vez visto: %1$s</string>
+
+    <string name="settings_tag">CONFIGURACIÓN</string>
+    <string name="settings_title">Ajustes Generales</string>
+    <string name="pref_category_network">PREFERENCIAS DE RED</string>
+    <string name="pref_wol_title">Wake on LAN</string>
+    <string name="pref_wol_desc">Enviar paquetes mágicos de encendido</string>
+    <string name="pref_alerts_title">Alertas de Amenazas</string>
+    <string name="pref_alerts_desc">Notificaciones push en tiempo real</string>
+    <string name="pref_autoscan_title">Escaneo Automático</string>
+    <string name="pref_autoscan_desc">Ejecutar en segundo plano cada 30 min</string>
+    <string name="pref_category_about">ACERCA DE NETSCOPE</string>
+    <string name="pref_version">Versión</string>
+    <string name="pref_build">Compilación</string>
+    <string name="btn_export_report">EXPORTAR REPORTE</string>
 </resources>
