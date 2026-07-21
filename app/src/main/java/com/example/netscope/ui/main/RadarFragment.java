@@ -112,7 +112,8 @@ public class RadarFragment extends Fragment {
                         tvDeviceCount.setText(liveDeviceList.size() + " dispositivos detectados");
 
                         new Thread(() -> {
-                            String vendor = PingSweepEngine.getVendorFromMac(ip);
+                            // Ahora llamamos a resolveDeviceIdentity, que ejecuta las 3 fases
+                            String vendor = PingSweepEngine.resolveDeviceIdentity(ip);
                             if (getActivity() != null) {
                                 getActivity().runOnUiThread(() -> {
                                     newDevice.setVendor(vendor);

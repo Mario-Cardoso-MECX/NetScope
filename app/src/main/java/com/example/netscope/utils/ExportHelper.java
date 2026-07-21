@@ -96,7 +96,7 @@ public class ExportHelper {
 
         // Dibujar Cabecera usando la fecha real del escaneo
         canvas.drawText("=================================", x, y, paintTitle); y += lineHeight;
-        canvas.drawText(" CYBERSWEEP - REPORTE EJECUTIVO", x, y, paintTitle); y += lineHeight;
+        canvas.drawText(" NETSCOPE - REPORTE EJECUTIVO", x, y, paintTitle); y += lineHeight;
         canvas.drawText("=================================", x, y, paintTitle); y += lineHeight;
         canvas.drawText("Fecha: " + lastTimestamp, x, y, paintNormal); y += lineHeight;
         canvas.drawText("---------------------------------", x, y, paintNormal); y += lineHeight;
