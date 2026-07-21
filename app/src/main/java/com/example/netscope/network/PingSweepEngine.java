@@ -40,7 +40,19 @@ public class PingSweepEngine {
         executor.shutdown();
         new Thread(() -> {
             try {
+                // Esperamos a que los 40 hilos terminen los pings rápidos
                 executor.awaitTermination(120, TimeUnit.SECONDS);
+
+                // ==========================================================
+                // TRUCO TÁCTICO: TIEMPO DE GRACIA mDNS (5 Segundos)
+                // ==========================================================
+                // Mantenemos el hilo "congelado" pero la UI sigue viva.
+                // Esto le da a los dispositivos IoT (Refris, Roku, TVs)
+                // el tiempo exacto que necesitan para responder con su nombre.
+                Log.d(TAG, "Pings terminados. Esperando nombres de red...");
+                Thread.sleep(5000);
+
+                // Ahora sí, cerramos el escaneo y guardamos en Base de Datos
                 if (listener != null) listener.onScanComplete(activeIps);
             } catch (InterruptedException e) {
                 Log.e(TAG, "Escaneo interrumpido", e);
@@ -48,9 +60,6 @@ public class PingSweepEngine {
         }).start();
     }
 
-    // ==========================================================
-    // FASE 1: CONFIRMAR VIDA (Ping o Puertos TCP)
-    // ==========================================================
     private boolean isHostAlive(String ip) {
         try {
             Process process = java.lang.Runtime.getRuntime().exec("ping -c 1 -W 1 " + ip);
@@ -64,28 +73,18 @@ public class PingSweepEngine {
         return false;
     }
 
-    // ==========================================================
-    // FASE 2: EXTRACCIÓN HÍBRIDA DE IDENTIDAD (ARP -> MAC -> PUERTOS)
-    // ==========================================================
     public static String resolveDeviceIdentity(String ip) {
-        // Intento 1: Robar la MAC de la tabla ARP de Android
         String mac = extractMacFromArp(ip);
-
-        // Intento 2: Si logramos robar la MAC, consultamos al fabricante oficial
         if (mac != null) {
             String vendor = queryMacVendorApi(mac);
             if (!vendor.equals("Genérico")) {
-                return vendor; // Ej: "Espressif Systems" (ESP32) o "Apple, Inc."
+                return vendor;
             }
         }
-
-        // Intento 3: Si Android 14 nos bloqueó la MAC, hacemos Fingerprinting por puertos
         return guessBrandByPorts(ip);
     }
 
-    // TÉCNICA AGRESIVA: Leer caché ARP local
     private static String extractMacFromArp(String ip) {
-        // Intento A: Leer el archivo puro del Kernel
         try (BufferedReader reader = new BufferedReader(new FileReader("/proc/net/arp"))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -101,7 +100,6 @@ public class PingSweepEngine {
             }
         } catch (Exception e) {}
 
-        // Intento B: Invocar binario de red (A veces sobrevive en teléfonos chinos/robustos)
         try {
             Process p = Runtime.getRuntime().exec("ip neigh show " + ip);
             BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
@@ -116,10 +114,9 @@ public class PingSweepEngine {
             }
         } catch (Exception e) {}
 
-        return null; // Android ganó esta batalla, pasamos a puertos
+        return null;
     }
 
-    // LLAMADA A LA API (Con la MAC robada)
     private static String queryMacVendorApi(String mac) {
         try {
             URL url = new URL("https://api.macvendors.com/" + mac);
@@ -135,18 +132,51 @@ public class PingSweepEngine {
         return "Genérico";
     }
 
-    // FINGERPRINTING HEURÍSTICO (Plan de Respaldo)
+    // FINGERPRINTING HEURÍSTICO (Modo Sigiloso + Arsenal Completo en Reserva)
     private static String guessBrandByPorts(String ip) {
+
+        // ======================================================================
+        // LOS 10 PUERTOS DE ORO (Activos en Modo Sigiloso)
+        // ======================================================================
+        if (isPortOpen(ip, 7676) || isPortOpen(ip, 8001)) return "Samsung Smart Device";
         if (isPortOpen(ip, 8060)) return "Roku Streaming Device";
         if (isPortOpen(ip, 8009) || isPortOpen(ip, 8008)) return "Google Cast / Smart TV";
-        if (isPortOpen(ip, 445)) return "Máquina Windows / Servidor SMB";
-        if (isPortOpen(ip, 62078)) return "Dispositivo Apple (AirPlay)";
-        if (isPortOpen(ip, 1900)) return "Dispositivo IoT (UPnP)"; // Focos, microondas, Alexa
-        if (isPortOpen(ip, 554)) return "Cámara de Seguridad IP";
+        if (isPortOpen(ip, 445)) return "Máquina Windows (SMB)";
+        if (isPortOpen(ip, 62078)) return "Apple Device (AirPlay)";
+        if (isPortOpen(ip, 5555)) return "Android Device (ADB) / FireTV";
+        if (isPortOpen(ip, 22)) return "Servidor Linux / Raspberry Pi (SSH)";
+        if (isPortOpen(ip, 9100) || isPortOpen(ip, 631)) return "Impresora de Red";
+        if (isPortOpen(ip, 1900)) return "Dispositivo IoT (UPnP)";
+        if (isPortOpen(ip, 80) || isPortOpen(ip, 443)) return "Panel Web / Enrutador Local";
+
+        // ======================================================================
+        // ARSENAL PESADO (Reglas extras - Comentado para auditoría profunda)
+        // ======================================================================
+        /*
+        // Ecosistemas Smart Home y Streaming adicionales
+        if (isPortOpen(ip, 1400)) return "Sonos System / Logitech Harmony";
+        if (isPortOpen(ip, 5000) || isPortOpen(ip, 5001)) return "Synology NAS / HomeKit";
+        if (isPortOpen(ip, 6668)) return "Tuya / SmartLife IoT Device";
+
+        // Dispositivos de Juego y Entretenimiento
+        if (isPortOpen(ip, 3074)) return "Consola Xbox";
+        if (isPortOpen(ip, 9304)) return "Consola PlayStation";
+        if (isPortOpen(ip, 32400)) return "Plex Media Server";
+
+        // Servicios de Red, Infraestructura e IoT (Desarrollo)
+        if (isPortOpen(ip, 1883) || isPortOpen(ip, 8883)) return "Servidor MQTT / Placa ESP32";
+        if (isPortOpen(ip, 3389)) return "Windows Remote Desktop (RDP)";
+        if (isPortOpen(ip, 5900)) return "Servidor VNC / macOS Screen Share";
+        if (isPortOpen(ip, 23)) return "Router / Switch Legacy (Telnet)";
+        if (isPortOpen(ip, 21)) return "Servidor FTP / NAS";
+        if (isPortOpen(ip, 3306)) return "Servidor Base de Datos (MySQL)";
+
+        // Periféricos y Cámaras
+        if (isPortOpen(ip, 554)) return "Cámara de Seguridad IP (RTSP)";
+        */
 
         return "Dispositivo Genérico";
     }
-
     private static boolean isPortOpen(String ip, int port) {
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress(ip, port), 150);
