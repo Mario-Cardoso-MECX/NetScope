@@ -1,6 +1,5 @@
 package com.example.netscope.ui.main;
 
-import android.database.Cursor;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -32,7 +31,8 @@ public class RadarFragment extends Fragment {
 
     private RecyclerView recyclerDevices;
     private static DeviceAdapter adapter;
-    // Hacemos la lista estática o persistente en memoria RAM durante el ciclo de vida de la app
+
+    // LISTA ESTÁTICA: Mantiene los datos vivos en RAM mientras navegas por los menús
     private static List<Device> liveDeviceList = new ArrayList<>();
 
     private MaterialButton btnStartScan;
@@ -54,39 +54,17 @@ public class RadarFragment extends Fragment {
         }
         recyclerDevices.setAdapter(adapter);
 
-        // Si la lista ya tenía elementos previos (porque navega entre menús), actualizamos el contador visual
+        // Si navegas de regreso desde otra pestaña, restauramos el contador visual
         if (!liveDeviceList.isEmpty()) {
             tvDeviceCount.setText(liveDeviceList.size() + " dispositivos detectados");
         } else {
-            // Si está vacía al arrancar, intentamos rescatar el último escaneo de la BD local
-            cargarUltimoEscaneoBD();
+            // Si la app se acaba de abrir desde cero, el radar debe estar en CERO.
+            tvDeviceCount.setText("0 dispositivos detectados");
         }
 
         btnStartScan.setOnClickListener(v -> iniciarEscaneo());
 
         return view;
-    }
-
-    private void cargarUltimoEscaneoBD() {
-        try {
-            NetScopeDbHelper dbHelper = new NetScopeDbHelper(getContext());
-            android.database.sqlite.SQLiteDatabase db = dbHelper.getReadableDatabase();
-            Cursor cursor = db.rawQuery("SELECT ip, name, status FROM scans", null);
-
-            if (cursor.moveToFirst()) {
-                liveDeviceList.clear();
-                do {
-                    String ip = cursor.getString(cursor.getColumnIndexOrThrow(NetScopeDbHelper.COL_IP));
-                    String name = cursor.getString(cursor.getColumnIndexOrThrow(NetScopeDbHelper.COL_NAME));
-                    liveDeviceList.add(new Device(name != null ? name : "Dispositivo Detectado", ip));
-                } while (cursor.moveToNext());
-                adapter.notifyDataSetChanged();
-                tvDeviceCount.setText(liveDeviceList.size() + " dispositivos detectados");
-            }
-            cursor.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     private void iniciarEscaneo() {
@@ -97,6 +75,7 @@ public class RadarFragment extends Fragment {
             return;
         }
 
+        // Limpiamos el radar en vivo antes de cada escaneo nuevo
         liveDeviceList.clear();
         adapter.notifyDataSetChanged();
         tvDeviceCount.setText("0 dispositivos detectados");

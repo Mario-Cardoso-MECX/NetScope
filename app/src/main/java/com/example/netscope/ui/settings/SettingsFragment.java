@@ -9,6 +9,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import com.example.netscope.R;
+import com.example.netscope.utils.ExportHelper;
 import com.example.netscope.utils.PermissionHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.switchmaterial.SwitchMaterial;
@@ -44,8 +45,8 @@ public class SettingsFragment extends Fragment {
         });
 
         btnExportReport.setOnClickListener(v -> {
-            Toast.makeText(getContext(), "Generando reporte de base de datos...", Toast.LENGTH_SHORT).show();
-            // Próximo paso: Conectar con ExportHelper.java
+            Toast.makeText(getContext(), "Generando Ticket de Red...", Toast.LENGTH_SHORT).show();
+            ExportHelper.exportDatabaseToImage(getContext());
         });
 
         return view;

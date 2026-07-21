@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Le decimos a Android que NetScope tiene permiso de compartir imágenes temporales -->
+    <cache-path name="shared_images" path="images/" />
+</paths>
