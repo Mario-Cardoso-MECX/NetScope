@@ -11,9 +11,9 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/nav_tools"
+        android:text="HERRAMIENTAS DE SEGURIDAD"
         android:textColor="@color/neon_accent"
-        android:textSize="12sp"
+        android:textSize="14sp"
         android:textStyle="bold"
         android:letterSpacing="0.1"
         android:layout_marginBottom="16dp"/>
@@ -31,126 +31,102 @@
         android:layout_marginBottom="16dp"
         android:inputType="textUri"/>
 
-    <!-- Cuadrícula de Herramientas (Grid) -->
+    <!-- Cuadrícula de 6 Herramientas (Grid) -->
     <GridLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:columnCount="2"
-        android:rowCount="2"
+        android:rowCount="3"
         android:alignmentMode="alignBounds">
 
-        <!-- Tarjeta 1: DNS -->
+        <!-- 1: Escáner de Puertos -->
         <LinearLayout
-            android:id="@+id/btnDnsLookup"
+            android:id="@+id/btnPortScanner"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_columnWeight="1"
-            android:layout_margin="8dp"
+            android:layout_margin="6dp"
             android:background="@color/card_background"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
+            android:gravity="center_vertical"
             android:orientation="vertical"
-            android:padding="16dp">
-            <ImageView
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:src="@android:drawable/ic_menu_search"
-                app:tint="@color/neon_accent" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="RESOLUCIÓN DNS"
-                android:textColor="@color/text_primary"
-                android:textSize="12sp"
-                android:textStyle="bold" />
+            android:padding="12dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Escáner de Puertos" android:textColor="@color/neon_accent" android:textSize="13sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Barrido TCP/UDP" android:textColor="@color/text_secondary" android:textSize="11sp" android:layout_marginTop="2dp"/>
         </LinearLayout>
 
-        <!-- Tarjeta 2: PING -->
+        <!-- 2: Barrido Ping -->
         <LinearLayout
             android:id="@+id/btnPing"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_columnWeight="1"
-            android:layout_margin="8dp"
+            android:layout_margin="6dp"
             android:background="@color/card_background"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
+            android:gravity="center_vertical"
             android:orientation="vertical"
-            android:padding="16dp">
-            <ImageView
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:src="@android:drawable/ic_menu_sort_by_size"
-                app:tint="@color/neon_accent" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="PING MANUAL"
-                android:textColor="@color/text_primary"
-                android:textSize="12sp"
-                android:textStyle="bold" />
+            android:padding="12dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Barrido Ping" android:textColor="@color/neon_accent" android:textSize="13sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Descubrimiento ICMP" android:textColor="@color/text_secondary" android:textSize="11sp" android:layout_marginTop="2dp"/>
         </LinearLayout>
 
-        <!-- Tarjeta 3: WHOIS -->
+        <!-- 3: Búsqueda DNS -->
         <LinearLayout
-            android:id="@+id/btnWhois"
+            android:id="@+id/btnDnsLookup"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_columnWeight="1"
-            android:layout_margin="8dp"
+            android:layout_margin="6dp"
             android:background="@color/card_background"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
+            android:gravity="center_vertical"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:alpha="0.5">
-            <ImageView
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:src="@android:drawable/ic_menu_info_details"
-                app:tint="@color/text_secondary" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="WHOIS"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:textStyle="bold" />
+            android:padding="12dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Búsqueda DNS" android:textColor="@color/neon_accent" android:textSize="13sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Resolución de nombres" android:textColor="@color/text_secondary" android:textSize="11sp" android:layout_marginTop="2dp"/>
         </LinearLayout>
 
-        <!-- Tarjeta 4: TRACEROUTE -->
+        <!-- 4: Traceroute -->
         <LinearLayout
             android:id="@+id/btnTraceroute"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_columnWeight="1"
-            android:layout_margin="8dp"
+            android:layout_margin="6dp"
             android:background="@color/card_background"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
+            android:gravity="center_vertical"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:alpha="0.5">
-            <ImageView
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:src="@android:drawable/ic_menu_share"
-                app:tint="@color/text_secondary" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="TRACEROUTE"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:textStyle="bold" />
+            android:padding="12dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Traceroute" android:textColor="@color/neon_accent" android:textSize="13sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Análisis de saltos" android:textColor="@color/text_secondary" android:textSize="11sp" android:layout_marginTop="2dp"/>
+        </LinearLayout>
+
+        <!-- 5: Whois -->
+        <LinearLayout
+            android:id="@+id/btnWhois"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:background="@color/card_background"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:padding="12dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Whois" android:textColor="@color/neon_accent" android:textSize="13sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Registro de dominio" android:textColor="@color/text_secondary" android:textSize="11sp" android:layout_marginTop="2dp"/>
+        </LinearLayout>
+
+        <!-- 6: Inspector SSL -->
+        <LinearLayout
+            android:id="@+id/btnSsl"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:background="@color/card_background"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:padding="12dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Inspector SSL" android:textColor="@color/neon_accent" android:textSize="13sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Detalles de certificado" android:textColor="@color/text_secondary" android:textSize="11sp" android:layout_marginTop="2dp"/>
         </LinearLayout>
     </GridLayout>
 
@@ -166,5 +142,4 @@
         android:padding="16dp"
         android:background="@color/card_background"
         android:gravity="top|start"/>
-
 </LinearLayout>

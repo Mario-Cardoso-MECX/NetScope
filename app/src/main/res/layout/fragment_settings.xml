@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0D1117">
+    android:background="@color/primary_background">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -13,126 +14,112 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/app_name"
-            android:textColor="#00FF7F"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.1"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/settings_title"
-            android:textColor="#FFFFFF"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="32dp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/pref_category_network"
-            android:textColor="#888888"
-            android:textSize="12sp"
+            android:text="CONFIGURACIÓN"
+            android:textColor="@color/neon_accent"
+            android:textSize="14sp"
             android:textStyle="bold"
             android:letterSpacing="0.1"
-            android:layout_marginBottom="16dp"/>
+            android:layout_marginBottom="24dp"/>
 
+        <!-- SECCIÓN: PREFERENCIAS -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PREFERENCIAS"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Switch 1: Notificaciones -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#161B22"
-            android:padding="16dp"
             android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+            android:background="@color/card_background"
+            android:padding="16dp"
+            android:layout_marginBottom="8dp"
+            android:gravity="center_vertical">
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/pref_wol_title" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="16sp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/pref_wol_desc" android:textColor="#888888" android:textSize="12sp"/>
-            </LinearLayout>
-            <com.google.android.material.switchmaterial.SwitchMaterial android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true"/>
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="#161B22"
-            android:padding="16dp"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/pref_alerts_title" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="16sp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/pref_alerts_desc" android:textColor="#888888" android:textSize="12sp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Alertas de Amenazas" android:textColor="@color/text_primary" android:textSize="16sp" android:textStyle="bold"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Notificaciones push de intrusos" android:textColor="@color/text_secondary" android:textSize="12sp"/>
             </LinearLayout>
             <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/switchAlerts"
+                android:id="@+id/switchThreats"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:checked="true"/>
+                android:checked="true"
+                app:useMaterialThemeColors="true"/>
         </LinearLayout>
 
+        <!-- Switch 2: Auto Escaneo -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#161B22"
-            android:padding="16dp"
             android:orientation="horizontal"
-            android:layout_marginBottom="32dp">
+            android:background="@color/card_background"
+            android:padding="16dp"
+            android:layout_marginBottom="24dp"
+            android:gravity="center_vertical">
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/pref_autoscan_title" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="16sp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/pref_autoscan_desc" android:textColor="#888888" android:textSize="12sp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Auto-Escaneo" android:textColor="@color/text_primary" android:textSize="16sp" android:textStyle="bold"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Escaneo en segundo plano (30 min)" android:textColor="@color/text_secondary" android:textSize="12sp"/>
             </LinearLayout>
-            <com.google.android.material.switchmaterial.SwitchMaterial android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="false"/>
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/switchAutoScan"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:useMaterialThemeColors="true"/>
         </LinearLayout>
 
+        <!-- SECCIÓN: ACERCA DE -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/pref_category_about"
-            android:textColor="#888888"
+            android:text="ACERCA DE"
+            android:textColor="@color/text_secondary"
             android:textSize="12sp"
             android:textStyle="bold"
-            android:letterSpacing="0.1"
-            android:layout_marginBottom="16dp"/>
+            android:layout_marginBottom="8dp"/>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#161B22"
-            android:padding="16dp"
             android:orientation="vertical"
-            android:layout_marginBottom="32dp">
-
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="12dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/pref_version" android:textColor="#FFFFFF" android:textStyle="bold"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="2.4.1" android:textColor="#00FF7F" android:textStyle="bold"/>
-            </LinearLayout>
-
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/pref_build" android:textColor="#FFFFFF" android:textStyle="bold"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="20260527" android:textColor="#888888"/>
-            </LinearLayout>
+            android:background="@color/card_background"
+            android:padding="16dp"
+            android:layout_marginBottom="24dp">
+            <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Versión" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="2.4.1" android:textColor="@color/neon_accent" android:textSize="14sp" android:layout_alignParentRight="true"/>
+            </RelativeLayout>
+            <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Build" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="20260721" android:textColor="@color/text_secondary" android:textSize="14sp" android:layout_alignParentRight="true"/>
+            </RelativeLayout>
         </LinearLayout>
 
-        <Button
-            android:id="@+id/btnExport"
+        <!-- BOTÓN EXPORTAR REPORTES -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnExportReport"
             android:layout_width="match_parent"
             android:layout_height="60dp"
-            android:text="@string/btn_export_report"
-            android:backgroundTint="#00FF7F"
-            android:textColor="#0D1117"
-            android:textStyle="bold"/>
+            android:text="EXPORTAR REPORTE DE RED"
+            android:backgroundTint="@color/neon_accent"
+            android:textColor="@color/primary_background"
+            android:textStyle="bold"
+            app:cornerRadius="8dp"
+            app:icon="@android:drawable/ic_menu_share"
+            app:iconTint="@color/primary_background"
+            app:iconGravity="textStart"/>
 
     </LinearLayout>
 </ScrollView>

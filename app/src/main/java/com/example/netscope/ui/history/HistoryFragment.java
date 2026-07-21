@@ -1,13 +1,10 @@
 package com.example.netscope.ui.history;
 
 import android.database.Cursor;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -16,9 +13,12 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.netscope.R;
 import com.example.netscope.data.NetScopeDbHelper;
+import com.example.netscope.data.ScanSession;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class HistoryFragment extends Fragment {
 
@@ -32,84 +32,48 @@ public class HistoryFragment extends Fragment {
         recyclerHistory = view.findViewById(R.id.recyclerHistory);
         recyclerHistory.setLayoutManager(new LinearLayoutManager(getContext()));
 
-        cargarHistorial();
+        cargarHistorialReal();
 
         return view;
     }
 
-    private void cargarHistorial() {
+    private void cargarHistorialReal() {
         NetScopeDbHelper db = new NetScopeDbHelper(getContext());
         Cursor cursor = db.getAllHistory();
-        List<HistoryRecord> records = new ArrayList<>();
+
+        // Usamos un mapa para agrupar los dispositivos individuales por Fecha/Sesión
+        Map<String, ScanSession> sesiones = new LinkedHashMap<>();
 
         if (cursor.moveToFirst()) {
             do {
                 String ip = cursor.getString(cursor.getColumnIndexOrThrow(NetScopeDbHelper.COL_IP));
-                String name = cursor.getString(cursor.getColumnIndexOrThrow(NetScopeDbHelper.COL_NAME));
                 String status = cursor.getString(cursor.getColumnIndexOrThrow(NetScopeDbHelper.COL_STATUS));
                 String time = cursor.getString(cursor.getColumnIndexOrThrow(NetScopeDbHelper.COL_TIMESTAMP));
 
-                records.add(new HistoryRecord(ip, name, status, time));
+                // Deducimos la subred matemáticamente (ej. 192.168.1.15 -> 192.168.1.0/24)
+                int lastDotIndex = ip.lastIndexOf('.');
+                String subnet = (lastDotIndex != -1) ? ip.substring(0, lastDotIndex) + ".0/24" : "Red Desconocida";
+
+                // Contamos si la base de datos lo marcó como intruso
+                int threatCount = (status != null && status.contains("INTRUSO")) ? 1 : 0;
+
+                // Si ya existe la sesión de esa fecha, le sumamos los equipos
+                if (sesiones.containsKey(time)) {
+                    ScanSession sesionExistente = sesiones.get(time);
+                    if (sesionExistente != null) {
+                        sesionExistente.setTotalHosts(sesionExistente.getTotalHosts() + 1);
+                        sesionExistente.setThreats(sesionExistente.getThreats() + threatCount);
+                    }
+                } else {
+                    // Si es nueva sesión, la creamos
+                    sesiones.put(time, new ScanSession(subnet, time, 1, threatCount));
+                }
             } while (cursor.moveToNext());
         }
         cursor.close();
 
+        // Convertimos nuestro mapa a una lista y la inyectamos al adaptador externo
+        List<ScanSession> records = new ArrayList<>(sesiones.values());
         recyclerHistory.setAdapter(new HistoryAdapter(records));
-    }
-
-    // ==========================================================
-    // CLASES INTERNAS (Para ahorrarte la creación de archivos)
-    // ==========================================================
-    private static class HistoryRecord {
-        String ip, name, status, time;
-        HistoryRecord(String ip, String name, String status, String time) {
-            this.ip = ip; this.name = name; this.status = status; this.time = time;
-        }
-    }
-
-    private static class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
-        private List<HistoryRecord> data;
-
-        HistoryAdapter(List<HistoryRecord> data) { this.data = data; }
-
-        @NonNull
-        @Override
-        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_history, parent, false);
-            return new ViewHolder(v);
-        }
-
-        @Override
-        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-            HistoryRecord record = data.get(position);
-            holder.tvName.setText(record.name != null ? record.name : holder.itemView.getContext().getString(R.string.text_detected_device));
-            holder.tvIp.setText(record.ip);
-
-            // Inyectamos la fecha dinámica en el string
-            holder.tvTime.setText(holder.itemView.getContext().getString(R.string.history_last_seen, record.time));
-
-            // La lógica visual del Dev 5 leyendo del XML
-            if (record.status.contains("INTRUSO")) {
-                holder.tvStatus.setText(holder.itemView.getContext().getString(R.string.status_intruso));
-                holder.tvStatus.setTextColor(Color.parseColor("#FF5555"));
-            } else {
-                holder.tvStatus.setText(holder.itemView.getContext().getString(R.string.status_conocido));
-                holder.tvStatus.setTextColor(Color.parseColor("#00FF7F"));
-            }
-        }
-
-        @Override
-        public int getItemCount() { return data.size(); }
-
-        static class ViewHolder extends RecyclerView.ViewHolder {
-            TextView tvName, tvIp, tvStatus, tvTime;
-            ViewHolder(View v) {
-                super(v);
-                tvName = v.findViewById(R.id.tvHistName);
-                tvIp = v.findViewById(R.id.tvHistIp);
-                tvStatus = v.findViewById(R.id.tvHistStatus);
-                tvTime = v.findViewById(R.id.tvHistDate);
-            }
-        }
     }
 }
