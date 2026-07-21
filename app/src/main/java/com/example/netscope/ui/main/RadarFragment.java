@@ -1,5 +1,6 @@
 package com.example.netscope.ui.main;
 
+import android.database.Cursor;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -30,8 +31,10 @@ import java.util.List;
 public class RadarFragment extends Fragment {
 
     private RecyclerView recyclerDevices;
-    private DeviceAdapter adapter;
-    private List<Device> liveDeviceList;
+    private static DeviceAdapter adapter;
+    // Hacemos la lista estática o persistente en memoria RAM durante el ciclo de vida de la app
+    private static List<Device> liveDeviceList = new ArrayList<>();
+
     private MaterialButton btnStartScan;
     private TextView tvDeviceCount;
 
@@ -45,17 +48,48 @@ public class RadarFragment extends Fragment {
         tvDeviceCount = view.findViewById(R.id.tvDeviceCount);
 
         recyclerDevices.setLayoutManager(new LinearLayoutManager(getContext()));
-        liveDeviceList = new ArrayList<>();
-        adapter = new DeviceAdapter(liveDeviceList);
+
+        if (adapter == null) {
+            adapter = new DeviceAdapter(liveDeviceList);
+        }
         recyclerDevices.setAdapter(adapter);
+
+        // Si la lista ya tenía elementos previos (porque navega entre menús), actualizamos el contador visual
+        if (!liveDeviceList.isEmpty()) {
+            tvDeviceCount.setText(liveDeviceList.size() + " dispositivos detectados");
+        } else {
+            // Si está vacía al arrancar, intentamos rescatar el último escaneo de la BD local
+            cargarUltimoEscaneoBD();
+        }
 
         btnStartScan.setOnClickListener(v -> iniciarEscaneo());
 
         return view;
     }
 
+    private void cargarUltimoEscaneoBD() {
+        try {
+            NetScopeDbHelper dbHelper = new NetScopeDbHelper(getContext());
+            android.database.sqlite.SQLiteDatabase db = dbHelper.getReadableDatabase();
+            Cursor cursor = db.rawQuery("SELECT ip, name, status FROM scans", null);
+
+            if (cursor.moveToFirst()) {
+                liveDeviceList.clear();
+                do {
+                    String ip = cursor.getString(cursor.getColumnIndexOrThrow(NetScopeDbHelper.COL_IP));
+                    String name = cursor.getString(cursor.getColumnIndexOrThrow(NetScopeDbHelper.COL_NAME));
+                    liveDeviceList.add(new Device(name != null ? name : "Dispositivo Detectado", ip));
+                } while (cursor.moveToNext());
+                adapter.notifyDataSetChanged();
+                tvDeviceCount.setText(liveDeviceList.size() + " dispositivos detectados");
+            }
+            cursor.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private void iniciarEscaneo() {
-        // AHORA OBTENEMOS LA LISTA COMPLETA MATEMÁTICAMENTE
         List<String> ipsToScan = getIpsToScan();
 
         if (ipsToScan == null || ipsToScan.isEmpty()) {
@@ -69,8 +103,6 @@ public class RadarFragment extends Fragment {
 
         btnStartScan.setEnabled(false);
         btnStartScan.setText(getString(R.string.btn_scanning));
-
-        // Le mostramos al usuario exactamente cuántas IPs abarca su subred real
         Toast.makeText(getContext(), "Escaneando bloque de " + ipsToScan.size() + " IPs...", Toast.LENGTH_LONG).show();
 
         NsdResolver nsdResolver = new NsdResolver(getContext());
@@ -146,9 +178,6 @@ public class RadarFragment extends Fragment {
         });
     }
 
-    // =======================================================
-    // LA NUEVA LÓGICA DE HACKEO DE SUBREDES (BITWISE MATH)
-    // =======================================================
     private List<String> getIpsToScan() {
         List<String> ips = new ArrayList<>();
         try {
@@ -156,7 +185,6 @@ public class RadarFragment extends Fragment {
                 NetworkInterface intf = en.nextElement();
                 if (intf.isLoopback() || !intf.isUp()) continue;
 
-                // InterfaceAddress nos da tanto la IP como la Máscara real del router
                 for (java.net.InterfaceAddress intfAddr : intf.getInterfaceAddresses()) {
                     InetAddress inetAddress = intfAddr.getAddress();
 
@@ -164,18 +192,15 @@ public class RadarFragment extends Fragment {
                         int prefixLength = intfAddr.getNetworkPrefixLength();
                         byte[] ipBytes = inetAddress.getAddress();
 
-                        // Convertimos los bytes de la IP a un número entero de 32 bits
                         int ipInt = ((ipBytes[0] & 0xFF) << 24) |
                                 ((ipBytes[1] & 0xFF) << 16) |
                                 ((ipBytes[2] & 0xFF) << 8)  |
                                 (ipBytes[3] & 0xFF);
 
-                        // Calculamos la máscara y los límites exactos de la red
                         int maskInt = 0xFFFFFFFF << (32 - prefixLength);
                         int networkInt = ipInt & maskInt;
                         int broadcastInt = networkInt | ~maskInt;
 
-                        // Iteramos solo en las IPs válidas de ese segmento gigante
                         for (int i = networkInt + 1; i < broadcastInt; i++) {
                             String ipStr = ((i >> 24) & 0xFF) + "." +
                                     ((i >> 16) & 0xFF) + "." +
