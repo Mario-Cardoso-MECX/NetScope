@@ -19,8 +19,8 @@
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:background="#161B22"
-        app:itemIconTint="@color/neon_green"
-        app:itemTextColor="@color/neon_green"
+        app:itemIconTint="@color/neon_accent"
+        app:itemTextColor="@color/neon_accent"
         app:menu="@menu/bottom_nav_menu" />
 
 </RelativeLayout>

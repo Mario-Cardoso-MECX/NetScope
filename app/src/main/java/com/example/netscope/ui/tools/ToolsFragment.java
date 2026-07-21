@@ -18,7 +18,6 @@ import java.net.InetAddress;
 
 public class ToolsFragment extends Fragment {
 
-    // ¡Solo necesitamos UNO! Queda más profesional.
     private EditText etTarget;
     private TextView tvResult;
 
@@ -30,7 +29,7 @@ public class ToolsFragment extends Fragment {
         etTarget = view.findViewById(R.id.etTarget);
         tvResult = view.findViewById(R.id.tvResult);
 
-        // Enlazamos las tarjetas del Grid (View en lugar de Button)
+        // Enlazamos las tarjetas del Grid (Son LinearLayouts interactivos, no botones planos)
         View btnDns = view.findViewById(R.id.btnDnsLookup);
         View btnPing = view.findViewById(R.id.btnPing);
         View btnWhois = view.findViewById(R.id.btnWhois);
@@ -40,7 +39,7 @@ public class ToolsFragment extends Fragment {
         btnDns.setOnClickListener(v -> performDnsLookup());
         btnPing.setOnClickListener(v -> performPing());
 
-        // Dejamos preparados los módulos futuros
+        // Dejamos preparados los módulos que requieren desarrollo de bajo nivel
         btnWhois.setOnClickListener(v -> mostrarProximamente("WHOIS"));
         btnTraceroute.setOnClickListener(v -> mostrarProximamente("TRACEROUTE"));
 
@@ -62,7 +61,7 @@ public class ToolsFragment extends Fragment {
                 String result = "> HOST:\n  " + address.getHostName() + "\n\n> IP:\n  " + address.getHostAddress();
                 if (getActivity() != null) getActivity().runOnUiThread(() -> tvResult.setText(result));
             } catch (Exception e) {
-                if (getActivity() != null) getActivity().runOnUiThread(() -> tvResult.setText("> Error: No se pudo resolver DNS."));
+                if (getActivity() != null) getActivity().runOnUiThread(() -> tvResult.setText("> Error: No se pudo resolver DNS. Verifique su conexión."));
             }
         }).start();
     }
@@ -95,6 +94,6 @@ public class ToolsFragment extends Fragment {
     }
 
     private void mostrarProximamente(String modulo) {
-        Toast.makeText(getContext(), "Módulo " + modulo + " en desarrollo", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getContext(), "El módulo " + modulo + " se integrará en la fase de auditoría profunda.", Toast.LENGTH_SHORT).show();
     }
 }

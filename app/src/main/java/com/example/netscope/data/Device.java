@@ -3,12 +3,12 @@ package com.example.netscope.data;
 public class Device {
     private String name;
     private String ip;
-    private String vendor; // Nuevo campo
+    private String vendor; // El nuevo campo para la marca
 
     public Device(String name, String ip) {
         this.name = name;
         this.ip = ip;
-        this.vendor = "Desconocido"; // Valor por defecto
+        this.vendor = "Genérico"; // Valor por defecto tipo Fing
     }
 
     public String getName() { return name; }

@@ -2,120 +2,133 @@ package com.example.netscope.ui.details;
 
 import android.graphics.Color;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.TextView;
-import android.widget.Toast;
-
 import androidx.appcompat.app.AppCompatActivity;
-
 import com.example.netscope.R;
-import com.example.netscope.network.PortScanner;
-import com.google.android.material.button.MaterialButton;
-
-import java.util.List;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class DetailsActivity extends AppCompatActivity {
 
-    private String targetIp;
-    private String targetName;
-
-    private TextView tvName, tvIp;
-    private MaterialButton btnAudit;
-
-    // Referencias a los textos de los puertos
-    private TextView p21, p22, p80, p443, p3306, p3389;
+    private TextView tvTargetName, tvTargetIp, tvConsole;
+    private TextView port21, port22, port80, port443, port3306, port3389;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_details);
 
-        // 1. Recibimos los datos del viaje (Intent)
-        targetIp = getIntent().getStringExtra("TARGET_IP");
-        targetName = getIntent().getStringExtra("TARGET_NAME");
+        // Enlaces UI
+        tvTargetName = findViewById(R.id.tvTargetName);
+        tvTargetIp = findViewById(R.id.tvTargetIp);
+        tvConsole = findViewById(R.id.tvConsole);
 
-        // 2. Enlazamos la interfaz
-        tvName = findViewById(R.id.tvDetailName);
-        tvIp = findViewById(R.id.tvDetailIp);
-        btnAudit = findViewById(R.id.btnAudit);
+        port21 = findViewById(R.id.port21);
+        port22 = findViewById(R.id.port22);
+        port80 = findViewById(R.id.port80);
+        port443 = findViewById(R.id.port443);
+        port3306 = findViewById(R.id.port3306);
+        port3389 = findViewById(R.id.port3389);
 
-        p21 = findViewById(R.id.port21);
-        p22 = findViewById(R.id.port22);
-        p80 = findViewById(R.id.port80);
-        p443 = findViewById(R.id.port443);
-        p3306 = findViewById(R.id.port3306);
-        p3389 = findViewById(R.id.port3389);
+        // Recibimos los datos del adaptador
+        String ip = getIntent().getStringExtra("TARGET_IP");
+        String name = getIntent().getStringExtra("TARGET_NAME");
 
-        // Ponemos los datos en pantalla
-        tvName.setText(targetName != null ? targetName : "Unknown Target");
-        tvIp.setText(targetIp != null ? targetIp : "0.0.0.0");
+        tvTargetName.setText(name != null ? name : "Desconocido");
+        tvTargetIp.setText(ip != null ? ip : "0.0.0.0");
 
-        // 3. El Botonazo de Auditoría
-        btnAudit.setOnClickListener(v -> iniciarAuditoria());
+        if (ip != null) {
+            startAggressiveScan(ip);
+        }
     }
 
-    private void iniciarAuditoria() {
-        if (targetIp == null) return;
+    private void startAggressiveScan(String ip) {
+        int[] portsToScan = {21, 22, 80, 443, 3306, 3389};
+        ExecutorService executor = Executors.newFixedThreadPool(portsToScan.length);
 
-        btnAudit.setEnabled(false);
-        btnAudit.setText(getString(R.string.btn_audit_loading));
-        Toast.makeText(this, getString(R.string.toast_audit_start), Toast.LENGTH_SHORT).show();
+        for (int port : portsToScan) {
+            executor.execute(() -> scanPortAndGrabBanner(ip, port));
+        }
+        executor.shutdown(); // Cerramos la admisión de hilos
+    }
 
-        // Limpiamos la consola visualmente
-        resetearTextos();
+    private void scanPortAndGrabBanner(String ip, int port) {
+        try {
+            Socket socket = new Socket();
+            // Límite de 500ms para evadir congelamiento (ANR)
+            socket.connect(new InetSocketAddress(ip, port), 500);
 
-        // Instanciamos el código pesado del Dev 2
-        PortScanner scanner = new PortScanner();
-        scanner.scanCriticalPorts(targetIp, new PortScanner.PortScanListener() {
-            @Override
-            public void onPortScanned(int port, boolean isOpen) {
-                runOnUiThread(() -> actualizarPuertoUI(port, isOpen));
+            // ¡Conexión exitosa! Marcamos de verde.
+            updatePortUI(port, true);
+
+            // ==========================================
+            // LÓGICA DE BANNER GRABBING
+            // ==========================================
+            String bannerData = "";
+            socket.setSoTimeout(1500); // Damos 1.5s extra para que el servidor responda su saludo
+
+            // Si es un puerto web, forzamos a que nos diga qué servidor es enviando un header falso
+            if (port == 80 || port == 443) {
+                OutputStream out = socket.getOutputStream();
+                out.write("HEAD / HTTP/1.0\r\n\r\n".getBytes());
+                out.flush();
             }
 
-            @Override
-            public void onScanFinished(List<Integer> openPorts) {
-                runOnUiThread(() -> {
-                    btnAudit.setEnabled(true);
-                    btnAudit.setText(getString(R.string.btn_audit_ports));
-                    Toast.makeText(DetailsActivity.this, getString(R.string.toast_audit_finish, openPorts.size()), Toast.LENGTH_LONG).show();
-                });
+            BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            int lineCount = 0;
+
+            // Leemos solo las primeras 3 líneas para no saturar la consola
+            while ((line = reader.readLine()) != null && lineCount < 3) {
+                sb.append("    ").append(line).append("\n");
+                lineCount++;
+            }
+            bannerData = sb.toString().trim();
+            socket.close();
+
+            if (!bannerData.isEmpty()) {
+                printToConsole("[PUERTO " + port + "] Abierto. Respuesta:\n" + bannerData + "\n");
+            } else {
+                printToConsole("[PUERTO " + port + "] Abierto. (Sin respuesta visible)\n");
+            }
+
+        } catch (Exception e) {
+            // Error: El puerto está cerrado o el Firewall lo filtró
+            updatePortUI(port, false);
+        }
+    }
+
+    // Actualiza la UI de las tarjetas (debe correr en el hilo principal)
+    private void updatePortUI(int port, boolean isOpen) {
+        runOnUiThread(() -> {
+            TextView targetView = null;
+            switch (port) {
+                case 21: targetView = port21; break;
+                case 22: targetView = port22; break;
+                case 80: targetView = port80; break;
+                case 443: targetView = port443; break;
+                case 3306: targetView = port3306; break;
+                case 3389: targetView = port3389; break;
+            }
+            if (targetView != null) {
+                if (isOpen) {
+                    targetView.setBackgroundColor(Color.parseColor("#00FF7F")); // Verde
+                    targetView.setTextColor(Color.parseColor("#0D1117"));
+                } else {
+                    targetView.setBackgroundColor(Color.parseColor("#FF5555")); // Rojo
+                    targetView.setTextColor(Color.WHITE);
+                }
             }
         });
     }
 
-    private void actualizarPuertoUI(int port, boolean isOpen) {
-        TextView targetText = null;
-        String baseText = "";
-
-        switch (port) {
-            case 21: targetText = p21; baseText = "[ 21 ] FTP - "; break;
-            case 22: targetText = p22; baseText = "[ 22 ] SSH - "; break;
-            case 80: targetText = p80; baseText = "[ 80 ] HTTP - "; break;
-            case 443: targetText = p443; baseText = "[ 443 ] HTTPS - "; break;
-            case 3306: targetText = p3306; baseText = "[ 3306 ] MySQL - "; break;
-            case 3389: targetText = p3389; baseText = "[ 3389 ] RDP - "; break;
-        }
-
-        if (targetText != null) {
-            if (isOpen) {
-                targetText.setText(baseText + getString(R.string.port_open));
-                targetText.setTextColor(Color.parseColor("#00FF7F")); // Verde hacker
-            } else {
-                targetText.setText(baseText + getString(R.string.port_closed));
-                targetText.setTextColor(Color.parseColor("#FF5555")); // Rojo
-            }
-        }
-    }
-
-    private void resetearTextos() {
-        int colorGris = Color.parseColor("#888888");
-        String escaneando = getString(R.string.port_scanning);
-
-        p21.setText("[ 21 ] FTP - " + escaneando); p21.setTextColor(colorGris);
-        p22.setText("[ 22 ] SSH - " + escaneando); p22.setTextColor(colorGris);
-        p80.setText("[ 80 ] HTTP - " + escaneando); p80.setTextColor(colorGris);
-        p443.setText("[ 443 ] HTTPS - " + escaneando); p443.setTextColor(colorGris);
-        p3306.setText("[ 3306 ] MySQL - " + escaneando); p3306.setTextColor(colorGris);
-        p3389.setText("[ 3389 ] RDP - " + escaneando); p3389.setTextColor(colorGris);
+    private void printToConsole(String message) {
+        runOnUiThread(() -> tvConsole.append("> " + message + "\n"));
     }
 }

@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -22,7 +23,6 @@ import com.google.android.material.button.MaterialButton;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
-import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -33,6 +33,7 @@ public class RadarFragment extends Fragment {
     private DeviceAdapter adapter;
     private List<Device> liveDeviceList;
     private MaterialButton btnStartScan;
+    private TextView tvDeviceCount;
 
     @Nullable
     @Override
@@ -41,35 +42,36 @@ public class RadarFragment extends Fragment {
 
         btnStartScan = view.findViewById(R.id.btnStartScan);
         recyclerDevices = view.findViewById(R.id.recyclerDevices);
+        tvDeviceCount = view.findViewById(R.id.tvDeviceCount);
 
-        // Configuramos la lista en blanco
         recyclerDevices.setLayoutManager(new LinearLayoutManager(getContext()));
         liveDeviceList = new ArrayList<>();
         adapter = new DeviceAdapter(liveDeviceList);
         recyclerDevices.setAdapter(adapter);
 
-        // Al presionar el botón de escanear
-        btnStartScan.setOnClickListener(v -> {
-            iniciarEscaneo();
-        });
+        btnStartScan.setOnClickListener(v -> iniciarEscaneo());
 
         return view;
     }
 
     private void iniciarEscaneo() {
-        String subnet = getLocalSubnet();
+        // AHORA OBTENEMOS LA LISTA COMPLETA MATEMÁTICAMENTE
+        List<String> ipsToScan = getIpsToScan();
 
-        if (subnet == null) {
+        if (ipsToScan == null || ipsToScan.isEmpty()) {
             Toast.makeText(getContext(), getString(R.string.toast_wifi_error), Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Limpiamos la lista anterior y avisamos al usuario
         liveDeviceList.clear();
         adapter.notifyDataSetChanged();
+        tvDeviceCount.setText("0 dispositivos detectados");
+
         btnStartScan.setEnabled(false);
         btnStartScan.setText(getString(R.string.btn_scanning));
-        Toast.makeText(getContext(), "Escaneando subred: " + subnet + "x", Toast.LENGTH_SHORT).show();
+
+        // Le mostramos al usuario exactamente cuántas IPs abarca su subred real
+        Toast.makeText(getContext(), "Escaneando bloque de " + ipsToScan.size() + " IPs...", Toast.LENGTH_LONG).show();
 
         NsdResolver nsdResolver = new NsdResolver(getContext());
         nsdResolver.startDiscovery((ip, name) -> {
@@ -88,7 +90,7 @@ public class RadarFragment extends Fragment {
         });
 
         PingSweepEngine engine = new PingSweepEngine();
-        engine.startScan(subnet, new PingSweepEngine.ScanListener() {
+        engine.startScan(ipsToScan, new PingSweepEngine.ScanListener() {
             @Override
             public void onDeviceFound(String ip, String name) {
                 if (getActivity() != null) {
@@ -96,8 +98,8 @@ public class RadarFragment extends Fragment {
                         Device newDevice = new Device(name, ip);
                         liveDeviceList.add(newDevice);
                         adapter.notifyItemInserted(liveDeviceList.size() - 1);
+                        tvDeviceCount.setText(liveDeviceList.size() + " dispositivos detectados");
 
-                        // Consulta de Vendor en segundo plano
                         new Thread(() -> {
                             String vendor = PingSweepEngine.getVendorFromMac(ip);
                             if (getActivity() != null) {
@@ -135,7 +137,7 @@ public class RadarFragment extends Fragment {
                         dbHelper.guardarEscaneoCompleto(liveDeviceList);
 
                         btnStartScan.setText(getString(R.string.btn_start_scan));
-                        Toast.makeText(getContext(), getString(R.string.toast_scan_complete, activeIps.size()), Toast.LENGTH_LONG).show();
+                        Toast.makeText(getContext(), "Completado: " + activeIps.size() + " equipos.", Toast.LENGTH_LONG).show();
 
                         nsdResolver.stopDiscovery();
                     });
@@ -144,19 +146,50 @@ public class RadarFragment extends Fragment {
         });
     }
 
-    private String getLocalSubnet() {
+    // =======================================================
+    // LA NUEVA LÓGICA DE HACKEO DE SUBREDES (BITWISE MATH)
+    // =======================================================
+    private List<String> getIpsToScan() {
+        List<String> ips = new ArrayList<>();
         try {
             for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements(); ) {
                 NetworkInterface intf = en.nextElement();
-                for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements(); ) {
-                    InetAddress inetAddress = enumIpAddr.nextElement();
-                    if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address) {
-                        String ip = inetAddress.getHostAddress();
-                        return ip.substring(0, ip.lastIndexOf('.') + 1);
+                if (intf.isLoopback() || !intf.isUp()) continue;
+
+                // InterfaceAddress nos da tanto la IP como la Máscara real del router
+                for (java.net.InterfaceAddress intfAddr : intf.getInterfaceAddresses()) {
+                    InetAddress inetAddress = intfAddr.getAddress();
+
+                    if (inetAddress instanceof Inet4Address) {
+                        int prefixLength = intfAddr.getNetworkPrefixLength();
+                        byte[] ipBytes = inetAddress.getAddress();
+
+                        // Convertimos los bytes de la IP a un número entero de 32 bits
+                        int ipInt = ((ipBytes[0] & 0xFF) << 24) |
+                                ((ipBytes[1] & 0xFF) << 16) |
+                                ((ipBytes[2] & 0xFF) << 8)  |
+                                (ipBytes[3] & 0xFF);
+
+                        // Calculamos la máscara y los límites exactos de la red
+                        int maskInt = 0xFFFFFFFF << (32 - prefixLength);
+                        int networkInt = ipInt & maskInt;
+                        int broadcastInt = networkInt | ~maskInt;
+
+                        // Iteramos solo en las IPs válidas de ese segmento gigante
+                        for (int i = networkInt + 1; i < broadcastInt; i++) {
+                            String ipStr = ((i >> 24) & 0xFF) + "." +
+                                    ((i >> 16) & 0xFF) + "." +
+                                    ((i >> 8) & 0xFF) + "." +
+                                    (i & 0xFF);
+                            ips.add(ipStr);
+                        }
+                        return ips;
                     }
                 }
             }
-        } catch (SocketException ex) { ex.printStackTrace(); }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
         return null;
     }
 }

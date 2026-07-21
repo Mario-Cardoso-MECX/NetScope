@@ -35,16 +35,18 @@ public class ScanWorker extends Worker {
     @NonNull
     @Override
     public Result doWork() {
-        String subnet = getLocalSubnet();
-        if (subnet == null) return Result.retry(); // Si no hay Wi-Fi, lo intenta luego
+        // AHORA USAMOS LA LISTA COMPLETA MATEMÁTICA EN LUGAR DEL STRING VIEJO
+        List<String> ipsToScan = getIpsToScan();
+
+        if (ipsToScan == null || ipsToScan.isEmpty()) return Result.retry(); // Si no hay Wi-Fi, lo intenta luego
 
         // Latch para pausar el Worker hasta que el escáner termine
         CountDownLatch latch = new CountDownLatch(1);
         List<Device> dispositivosEncontrados = new ArrayList<>();
         PingSweepEngine engine = new PingSweepEngine();
 
-        // Lanzamos el motor en modo "Silencioso"
-        engine.startScan(subnet, new PingSweepEngine.ScanListener() {
+        // Lanzamos el motor en modo "Silencioso" con la lista de IPs masiva
+        engine.startScan(ipsToScan, new PingSweepEngine.ScanListener() {
             @Override
             public void onDeviceFound(String ip, String name) {
                 dispositivosEncontrados.add(new Device(name, ip));
@@ -108,15 +110,44 @@ public class ScanWorker extends Worker {
         manager.notify((int) System.currentTimeMillis(), builder.build());
     }
 
-    private String getLocalSubnet() {
+    // =======================================================
+    // LA NUEVA LÓGICA DE HACKEO DE SUBREDES (BITWISE MATH)
+    // =======================================================
+    private List<String> getIpsToScan() {
+        List<String> ips = new ArrayList<>();
         try {
             for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements(); ) {
                 NetworkInterface intf = en.nextElement();
-                for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements(); ) {
-                    InetAddress inetAddress = enumIpAddr.nextElement();
-                    if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address) {
-                        String ip = inetAddress.getHostAddress();
-                        return ip.substring(0, ip.lastIndexOf('.') + 1);
+                if (intf.isLoopback() || !intf.isUp()) continue;
+
+                // InterfaceAddress nos da tanto la IP como la Máscara real del router
+                for (java.net.InterfaceAddress intfAddr : intf.getInterfaceAddresses()) {
+                    InetAddress inetAddress = intfAddr.getAddress();
+
+                    if (inetAddress instanceof Inet4Address) {
+                        int prefixLength = intfAddr.getNetworkPrefixLength();
+                        byte[] ipBytes = inetAddress.getAddress();
+
+                        // Convertimos los bytes de la IP a un número entero de 32 bits
+                        int ipInt = ((ipBytes[0] & 0xFF) << 24) |
+                                ((ipBytes[1] & 0xFF) << 16) |
+                                ((ipBytes[2] & 0xFF) << 8)  |
+                                (ipBytes[3] & 0xFF);
+
+                        // Calculamos la máscara y los límites exactos de la red
+                        int maskInt = 0xFFFFFFFF << (32 - prefixLength);
+                        int networkInt = ipInt & maskInt;
+                        int broadcastInt = networkInt | ~maskInt;
+
+                        // Iteramos solo en las IPs válidas de ese segmento gigante
+                        for (int i = networkInt + 1; i < broadcastInt; i++) {
+                            String ipStr = ((i >> 24) & 0xFF) + "." +
+                                    ((i >> 16) & 0xFF) + "." +
+                                    ((i >> 8) & 0xFF) + "." +
+                                    (i & 0xFF);
+                            ips.add(ipStr);
+                        }
+                        return ips;
                     }
                 }
             }

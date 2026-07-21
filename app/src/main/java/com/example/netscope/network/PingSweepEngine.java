@@ -16,18 +16,17 @@ public class PingSweepEngine {
 
     private static final String TAG = "PingSweep";
     private static final int TIMEOUT_MS = 500;
-    private static final int NUM_THREADS = 50;
+    // Subimos a 100 hilos para procesar bloques masivos de IPs sin crashear
+    private static final int NUM_THREADS = 100;
 
     public interface ScanListener {
         void onDeviceFound(String ip, String name);
         void onScanComplete(List<String> activeIps);
     }
 
-    // Método para obtener el fabricante de forma asíncrona
     public static String getVendorFromMac(String ip) {
         try {
-            // Usamos una API pública de OUI (macvendors.com o similar)
-            URL url = new URL("https://api.macvendors.com/" + ip); // Nota: esto es conceptual, ajustaremos según la API real
+            URL url = new URL("https://api.macvendors.com/" + ip);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setConnectTimeout(2000);
             if (conn.getResponseCode() == 200) {
@@ -40,14 +39,13 @@ public class PingSweepEngine {
         return "Genérico";
     }
 
-    public void startScan(final String subnet, final ScanListener listener) {
+    // AHORA RECIBE UNA LISTA DE IPs EN LUGAR DE UN STRING BÁSICO
+    public void startScan(final List<String> ipsToScan, final ScanListener listener) {
         ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS);
         final List<String> activeIps = new ArrayList<>();
 
-        for (int i = 1; i <= 254; i++) {
-            final int lastOctet = i;
+        for (String targetIp : ipsToScan) {
             executor.execute(() -> {
-                String targetIp = subnet + lastOctet;
                 try {
                     InetAddress address = InetAddress.getByName(targetIp);
                     if (address.isReachable(TIMEOUT_MS)) {
@@ -63,7 +61,8 @@ public class PingSweepEngine {
         executor.shutdown();
         new Thread(() -> {
             try {
-                executor.awaitTermination(60, TimeUnit.SECONDS);
+                // Aumentamos el tiempo de espera a 120 seg por si la red es de +1000 dispositivos
+                executor.awaitTermination(120, TimeUnit.SECONDS);
                 if (listener != null) listener.onScanComplete(activeIps);
             } catch (InterruptedException e) {
                 Log.e(TAG, "Escaneo interrumpido", e);

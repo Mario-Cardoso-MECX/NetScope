@@ -4,14 +4,15 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#0D1117"
+    android:background="@color/primary_background"
     android:padding="24dp">
 
+    <!-- EL NOMBRE DEL PROYECTO -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/app_name"
-        android:textColor="#00FF7F"
+        android:textColor="@color/neon_accent"
         android:textSize="12sp"
         android:textStyle="bold"
         android:letterSpacing="0.1"/>
@@ -20,35 +21,38 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/radar_title"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/text_primary"
         android:textSize="28sp"
         android:textStyle="bold"
         android:layout_marginBottom="32dp"/>
 
+    <!-- EL ESCÁNER VISUAL -->
     <ImageView
         android:layout_width="120dp"
         android:layout_height="120dp"
         android:layout_gravity="center"
         android:layout_marginBottom="32dp"
         android:src="@android:drawable/ic_menu_compass"
-        app:tint="#00FF7F"/>
+        app:tint="@color/neon_accent"/>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnStartScan"
         android:layout_width="match_parent"
         android:layout_height="60dp"
         android:text="@string/btn_start_scan"
-        android:backgroundTint="#00FF7F"
-        android:textColor="#0D1117"
+        android:backgroundTint="@color/neon_accent"
+        android:textColor="@color/primary_background"
         android:textStyle="bold"
         android:layout_marginBottom="16dp"
         app:cornerRadius="8dp"/>
 
+    <!-- EL CONTADOR DINÁMICO (Inyectamos el ID aquí) -->
     <TextView
+        android:id="@+id/tvDeviceCount"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/radar_subtitle"
-        android:textColor="#888888"
+        android:text="0 dispositivos detectados"
+        android:textColor="@color/text_secondary"
         android:textSize="12sp"
         android:textStyle="bold"
         android:letterSpacing="0.1"
