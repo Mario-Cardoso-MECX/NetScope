@@ -44,4 +44,5 @@ dependencies {
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.ext.junit)
     implementation("androidx.work:work-runtime:2.9.0")
+    implementation("androidx.work:work-runtime:2.9.0")
 }
