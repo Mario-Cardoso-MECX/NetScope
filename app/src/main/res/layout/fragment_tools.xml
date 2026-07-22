@@ -141,5 +141,6 @@
         android:fontFamily="monospace"
         android:padding="16dp"
         android:background="@color/card_background"
-        android:gravity="top|start"/>
+        android:gravity="top|start"
+        android:textIsSelectable="true"/>
 </LinearLayout>
