@@ -26,14 +26,33 @@
         android:textStyle="bold"
         android:layout_marginBottom="32dp"/>
 
-    <!-- EL ESCÁNER VISUAL -->
-    <ImageView
-        android:layout_width="120dp"
-        android:layout_height="120dp"
+    <!-- EL ESCÁNER VISUAL TIPO PELÍCULA -->
+    <FrameLayout
+        android:layout_width="160dp"
+        android:layout_height="160dp"
         android:layout_gravity="center"
-        android:layout_marginBottom="32dp"
-        android:src="@android:drawable/ic_menu_compass"
-        app:tint="@color/neon_accent"/>
+        android:layout_marginBottom="32dp">
+
+        <!-- 1. Cuadrícula de radar estática -->
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/radar_grid" />
+
+        <!-- 2. Capa invisible donde inyectaremos los puntitos dinámicamente -->
+        <FrameLayout
+            android:id="@+id/dotsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- 3. El Haz de luz que SÍ va a girar por encima de los puntos -->
+        <ImageView
+            android:id="@+id/ivRadarSweep"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/radar_sweep"
+            android:visibility="invisible"/>
+    </FrameLayout>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnStartScan"

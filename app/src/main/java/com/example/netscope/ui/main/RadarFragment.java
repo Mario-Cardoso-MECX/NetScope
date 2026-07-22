@@ -4,6 +4,11 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.Animation;
+import android.view.animation.LinearInterpolator;
+import android.view.animation.RotateAnimation;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -31,12 +36,12 @@ public class RadarFragment extends Fragment {
 
     private RecyclerView recyclerDevices;
     private static DeviceAdapter adapter;
-
-    // LISTA ESTÁTICA: Mantiene los datos vivos en RAM mientras navegas por los menús
     private static List<Device> liveDeviceList = new ArrayList<>();
 
     private MaterialButton btnStartScan;
     private TextView tvDeviceCount;
+    private ImageView ivRadarSweep;
+    private FrameLayout dotsContainer; // El contenedor de los puntitos
 
     @Nullable
     @Override
@@ -46,6 +51,8 @@ public class RadarFragment extends Fragment {
         btnStartScan = view.findViewById(R.id.btnStartScan);
         recyclerDevices = view.findViewById(R.id.recyclerDevices);
         tvDeviceCount = view.findViewById(R.id.tvDeviceCount);
+        ivRadarSweep = view.findViewById(R.id.ivRadarSweep);
+        dotsContainer = view.findViewById(R.id.dotsContainer);
 
         recyclerDevices.setLayoutManager(new LinearLayoutManager(getContext()));
 
@@ -54,11 +61,11 @@ public class RadarFragment extends Fragment {
         }
         recyclerDevices.setAdapter(adapter);
 
-        // Si navegas de regreso desde otra pestaña, restauramos el contador visual
         if (!liveDeviceList.isEmpty()) {
             tvDeviceCount.setText(liveDeviceList.size() + " dispositivos detectados");
+            // Si ya hay dispositivos, repintar los puntos al volver a la pestaña
+            for(int i=0; i<liveDeviceList.size(); i++) dibujarPuntitoEnRadar();
         } else {
-            // Si la app se acaba de abrir desde cero, el radar debe estar en CERO.
             tvDeviceCount.setText("0 dispositivos detectados");
         }
 
@@ -75,13 +82,28 @@ public class RadarFragment extends Fragment {
             return;
         }
 
-        // Limpiamos el radar en vivo antes de cada escaneo nuevo
+        // Limpiar lista, texto y borrar TODOS los puntitos anteriores
         liveDeviceList.clear();
         adapter.notifyDataSetChanged();
         tvDeviceCount.setText("0 dispositivos detectados");
+        dotsContainer.removeAllViews();
 
         btnStartScan.setEnabled(false);
         btnStartScan.setText(getString(R.string.btn_scanning));
+
+        // 🌀 INICIA ANIMACIÓN Y PRENDE LA LUZ
+        RotateAnimation rotate = new RotateAnimation(0, 360,
+                Animation.RELATIVE_TO_SELF, 0.5f,
+                Animation.RELATIVE_TO_SELF, 0.5f);
+        rotate.setDuration(1500);
+        rotate.setRepeatCount(Animation.INFINITE);
+        rotate.setInterpolator(new LinearInterpolator());
+
+        if (ivRadarSweep != null) {
+            ivRadarSweep.setVisibility(View.VISIBLE); // <-- AQUÍ PRENDEMOS LA LUZ
+            ivRadarSweep.startAnimation(rotate);
+        }
+
         Toast.makeText(getContext(), "Escaneando bloque de " + ipsToScan.size() + " IPs...", Toast.LENGTH_LONG).show();
 
         NsdResolver nsdResolver = new NsdResolver(getContext());
@@ -111,8 +133,10 @@ public class RadarFragment extends Fragment {
                         adapter.notifyItemInserted(liveDeviceList.size() - 1);
                         tvDeviceCount.setText(liveDeviceList.size() + " dispositivos detectados");
 
+                        // ✨ DIBUJAMOS EL PUNTITO EN EL RADAR
+                        dibujarPuntitoEnRadar();
+
                         new Thread(() -> {
-                            // Ahora llamamos a resolveDeviceIdentity, que ejecuta las 3 fases
                             String vendor = PingSweepEngine.resolveDeviceIdentity(ip);
                             if (getActivity() != null) {
                                 getActivity().runOnUiThread(() -> {
@@ -143,12 +167,19 @@ public class RadarFragment extends Fragment {
                         });
 
                         adapter.notifyDataSetChanged();
+
+                        // 🛑 DETENER ANIMACIÓN Y APAGAR LA LUZ
+                        if (ivRadarSweep != null) {
+                            ivRadarSweep.clearAnimation();
+                            ivRadarSweep.setVisibility(View.INVISIBLE); // <-- AQUÍ LA APAGAMOS
+                        }
+
                         btnStartScan.setEnabled(true);
+                        btnStartScan.setText(getString(R.string.btn_start_scan));
 
                         NetScopeDbHelper dbHelper = new NetScopeDbHelper(getContext());
                         dbHelper.guardarEscaneoCompleto(liveDeviceList);
 
-                        btnStartScan.setText(getString(R.string.btn_start_scan));
                         Toast.makeText(getContext(), "Completado: " + activeIps.size() + " equipos.", Toast.LENGTH_LONG).show();
 
                         nsdResolver.stopDiscovery();
@@ -156,6 +187,46 @@ public class RadarFragment extends Fragment {
                 }
             }
         });
+    }
+
+    // =========================================================================
+    // TRIGONOMETRÍA PARA INYECTAR PUNTOS DINÁMICOS EN EL RADAR (CON LÍMITE)
+    // =========================================================================
+    private void dibujarPuntitoEnRadar() {
+        if (getContext() == null || dotsContainer.getWidth() == 0) return;
+
+        // 🛡️ EL ESCUDO ANTI-SATURACIÓN (Máximo 20 puntitos visuales)
+        if (dotsContainer.getChildCount() >= 20) {
+            return; // Si ya hay 20 puntos en el radar, ignoramos el dibujo visual.
+        }
+
+        // Tamaño del contenedor (radio del radar)
+        int size = dotsContainer.getWidth();
+        int radioVisual = (size / 2) - 20; // 20px de margen para no salirse del borde
+
+        // Generamos un ángulo (0 a 360 grados) y una distancia (0 al borde) aleatorios
+        double angle = Math.random() * 2 * Math.PI;
+        double r = Math.random() * radioVisual;
+
+        // Convertimos a coordenadas X y Y cartesianas
+        int dotSize = (int) (8 * getResources().getDisplayMetrics().density); // 8dp de tamaño
+        int dotX = (int) ((size / 2) + r * Math.cos(angle)) - (dotSize / 2);
+        int dotY = (int) ((size / 2) + r * Math.sin(angle)) - (dotSize / 2);
+
+        // Creamos la imagen del puntito
+        ImageView dot = new ImageView(getContext());
+        dot.setImageResource(R.drawable.radar_dot);
+
+        // Lo posicionamos exactamente en sus coordenadas X,Y
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(dotSize, dotSize);
+        params.leftMargin = dotX;
+        params.topMargin = dotY;
+
+        // Efecto visual hacker: un pequeño parpadeo al nacer
+        dot.setAlpha(0f);
+        dot.animate().alpha(1f).setDuration(400).start();
+
+        dotsContainer.addView(dot, params);
     }
 
     private List<String> getIpsToScan() {
