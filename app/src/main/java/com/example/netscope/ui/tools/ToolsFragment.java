@@ -76,9 +76,7 @@ public class ToolsFragment extends Fragment {
         // UX DE CONSOLA: Recuperar Memoria, Scroll y Portapapeles
         // ==========================================================
         if (tvConsole != null) {
-            // ¡MAGIA! Al regresar a la pestaña, recuperamos el texto exacto donde se quedó
             tvConsole.setText(historialConsola.toString());
-
             tvConsole.setMovementMethod(new ScrollingMovementMethod());
             tvConsole.setOnLongClickListener(v -> {
                 ClipboardManager clipboard = (ClipboardManager) getActivity().getSystemService(Context.CLIPBOARD_SERVICE);
@@ -118,24 +116,16 @@ public class ToolsFragment extends Fragment {
         }
     }
 
-    // ==========================================================
-    // MÉTODOS DE ESCRITURA EN CONSOLA PERSISTENTE
-    // ==========================================================
     private void limpiarConsola(String textoInicial) {
-        // Borramos la memoria anterior e iniciamos una nueva tarea
         historialConsola.setLength(0);
         historialConsola.append(textoInicial);
-
         if (getActivity() != null && tvConsole != null) {
             getActivity().runOnUiThread(() -> tvConsole.setText(historialConsola.toString()));
         }
     }
 
     private void imprimirEnConsola(String texto) {
-        // Guardamos en la memoria ESTÉ O NO ESTÉ la pantalla abierta
         historialConsola.append("\n").append(texto);
-
-        // Si la pantalla está abierta, actualizamos visualmente
         if (getActivity() != null && tvConsole != null) {
             getActivity().runOnUiThread(() -> {
                 tvConsole.setText(historialConsola.toString());
@@ -268,7 +258,7 @@ public class ToolsFragment extends Fragment {
     }
 
     // ==========================================================
-    // 4. TRACEROUTE SIMULADO
+    // 4. TRACEROUTE SIMULADO (TTL Hack)
     // ==========================================================
     private void iniciarTraceroute() {
         String target = etTarget.getText().toString().trim();
@@ -307,56 +297,76 @@ public class ToolsFragment extends Fragment {
     }
 
     // ==========================================================
-    // 5. WHOIS (Web Scraper OSINT - Bypass Definitivo por HTTPS)
+    // 5. WHOIS RECURSIVO DE DOBLE SALTO (Nivel Industrial)
     // ==========================================================
     private void iniciarWhois() {
         String target = etTarget.getText().toString().trim();
-        if (target.isEmpty()) { imprimirEnConsola("> [ERROR] Ingresa un dominio válido."); return; }
+        if (target.isEmpty()) { imprimirEnConsola("> [ERROR] Ingresa un dominio válido (ej. uptx.edu.mx)."); return; }
 
         cambiarEstadoBoton(btnWhois, false);
-        limpiarConsola("> Iniciando Web Scraping en IANA WHOIS para: " + target + "...\n> (Bypass de Firewall por Puerto 443)");
+        limpiarConsola("> [Salto 1] Consultando servidor raíz (whois.iana.org)...");
 
         new Thread(() -> {
+            String servidorActual = "whois.iana.org";
+            String servidorSecundario = null;
+
             try {
-                // Hacemos una petición web idéntica a la de un navegador moderno
-                URL url = new URL("https://www.iana.org/whois?q=" + target);
-                HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
-                conn.setConnectTimeout(8000);
-                conn.setReadTimeout(8000);
-                conn.setRequestMethod("GET");
-                // Camuflaje: Le decimos al servidor que somos un navegador Chrome, no un script
-                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+                // --- SALTO 1: Preguntar al servidor raíz ---
+                try (Socket socket = new Socket()) {
+                    socket.connect(new InetSocketAddress(servidorActual, 43), 30000);
+                    socket.setSoTimeout(30000);
 
-                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                String linea;
-                boolean capturando = false;
-                boolean encontroAlgo = false;
+                    PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                    BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-                while ((linea = in.readLine()) != null) {
-                    // IANA guarda el resultado puro dentro de una etiqueta HTML <pre>
-                    if (linea.contains("<pre id=\"whois-text\">") || linea.contains("<pre>")) {
-                        capturando = true;
-                        continue; // Saltamos la línea de la etiqueta HTML
-                    }
-                    if (linea.contains("</pre>")) {
-                        capturando = false;
-                        break; // Terminamos de leer el bloque de texto
-                    }
+                    out.print(target + "\r\n");
+                    out.flush();
 
-                    if (capturando) {
-                        // Limpiamos los caracteres especiales HTML por seguridad
-                        String textoLimpio = linea.replace("&quot;", "\"").replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
-                        imprimirEnConsola(textoLimpio);
-                        encontroAlgo = true;
+                    String linea;
+                    while ((linea = in.readLine()) != null) {
+                        if (!linea.trim().isEmpty() && !linea.startsWith("%")) {
+                            imprimirEnConsola(linea);
+
+                            // Analizamos la respuesta buscando redirecciones automáticas (Ej. "refer: whois.mx" o "whois:")
+                            String lower = linea.toLowerCase().trim();
+                            if (lower.startsWith("refer:") || lower.startsWith("whois:")) {
+                                String[] partes = linea.split(":");
+                                if (partes.length > 1) {
+                                    servidorSecundario = partes[1].trim();
+                                }
+                            }
+                        }
                     }
                 }
-                in.close();
 
-                if (!encontroAlgo) imprimirEnConsola("> [!] No se encontró información en la base de datos central de IANA.");
-                imprimirEnConsola("> [✓] Web Scraping WHOIS finalizado.");
+                // --- SALTO 2: Salto automático al servidor específico si existe ---
+                if (servidorSecundario != null && !servidorSecundario.isEmpty()) {
+                    imprimirEnConsola("\n> [Salto 2] Redirección detectada hacia: " + servidorSecundario);
+                    imprimirEnConsola("> Consultando base de datos profunda...");
+
+                    try (Socket socket2 = new Socket()) {
+                        socket2.connect(new InetSocketAddress(servidorSecundario, 43), 30000);
+                        socket2.setSoTimeout(30000);
+
+                        PrintWriter out2 = new PrintWriter(socket2.getOutputStream(), true);
+                        BufferedReader in2 = new BufferedReader(new InputStreamReader(socket2.getInputStream()));
+
+                        out2.print(target + "\r\n");
+                        out2.flush();
+
+                        String linea2;
+                        while ((linea2 = in2.readLine()) != null) {
+                            if (!linea2.trim().isEmpty() && !linea2.startsWith("%")) {
+                                imprimirEnConsola(linea2);
+                            }
+                        }
+                    }
+                }
+
+                imprimirEnConsola("> [✓] Consulta WHOIS recursiva finalizada.");
 
             } catch (Exception e) {
-                imprimirEnConsola("> [ERROR] Fallo en la conexión HTTPS. Verifica tu internet.");
+                imprimirEnConsola("> [ERROR] Fallo en la red durante la consulta recursiva. Verifica tu internet o el dominio.");
             } finally {
                 cambiarEstadoBoton(btnWhois, true);
             }
@@ -364,7 +374,7 @@ public class ToolsFragment extends Fragment {
     }
 
     // ==========================================================
-    // 6. INSPECTOR SSL
+    // 6. INSPECTOR SSL (Robo de Certificado)
     // ==========================================================
     private void iniciarInspectorSSL() {
         String target = etTarget.getText().toString().trim();
