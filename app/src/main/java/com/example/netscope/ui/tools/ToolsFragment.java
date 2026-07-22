@@ -83,6 +83,16 @@ public class ToolsFragment extends Fragment {
         if (btnWhois != null) btnWhois.setOnClickListener(v -> iniciarWhois());
         if (btnSsl != null) btnSsl.setOnClickListener(v -> iniciarInspectorSSL());
 
+        // ==========================================================
+        // EVENTOS DE CLICK - ALERTAS EDUCATIVAS (?)
+        // ==========================================================
+        if (infoPortScanner != null) infoPortScanner.setOnClickListener(v -> mostrarAlertaEducativa("Escáner de Puertos", "Prueba miles de 'puertas virtuales' (puertos) en un servidor o dispositivo para ver cuáles están abiertas.\n\nÚtil para encontrar cámaras ocultas, bases de datos expuestas o servicios inseguros."));
+        if (infoPing != null) infoPing.setOnClickListener(v -> mostrarAlertaEducativa("Barrido Ping", "Envía pequeños paquetes de datos (ecos) al objetivo para verificar si está 'vivo' y respondiendo en la red.\n\nEs como tocar la puerta para ver si hay alguien en casa."));
+        if (infoDns != null) infoDns.setOnClickListener(v -> mostrarAlertaEducativa("Búsqueda DNS", "El DNS es el directorio telefónico de Internet.\n\n• Si ingresas un nombre (google.com), busca su IP real.\n• Si ingresas una IP, descubre el nombre escondido detrás."));
+        if (infoTraceroute != null) infoTraceroute.setOnClickListener(v -> mostrarAlertaEducativa("Traceroute", "Mapea todo el camino que recorren tus datos por Internet. Te muestra cada 'salto' (router) por el que pasas antes de llegar al objetivo final."));
+        if (infoWhois != null) infoWhois.setOnClickListener(v -> mostrarAlertaEducativa("Whois", "Consulta las bases de datos públicas de Internet para decirte quién es el dueño registrado de un dominio web o a qué proveedor pertenece una dirección IP."));
+        if (infoSsl != null) infoSsl.setOnClickListener(v -> mostrarAlertaEducativa("Inspector SSL", "Extrae el certificado de seguridad de una página web (el candadito del navegador) para verificar si la conexión está cifrada, quién emitió el certificado y cuándo caduca."));
+
         return view;
     }
 
