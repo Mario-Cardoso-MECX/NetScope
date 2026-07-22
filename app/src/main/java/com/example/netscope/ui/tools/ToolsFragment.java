@@ -258,7 +258,7 @@ public class ToolsFragment extends Fragment {
     }
 
     // ==========================================================
-    // 5. WHOIS (Clásico TCP Puerto 43)
+    // 5. WHOIS (Híbrido: TCP 43 para .mx / RDAP Nativo para el resto)
     // ==========================================================
     private void iniciarWhois() {
         String target = etTarget.getText().toString().trim();
@@ -269,48 +269,143 @@ public class ToolsFragment extends Fragment {
         }
 
         cambiarEstadoBoton(btnWhois, false);
-        limpiarConsola("> Consultando WHOIS (Puerto 43 TCP) para: " + target);
+        limpiarConsola("> Consultando WHOIS para: " + target);
 
         new Thread(() -> {
             try {
-                // Enrutamiento inicial táctico
-                String whoisServer = target.toLowerCase().endsWith(".mx") ? "whois.mx" : "whois.iana.org";
-                String resultado = realizarConsultaSocketWhois(whoisServer, target);
+                // =====================================================
+                // DOMINIOS .MX -> CLÁSICO TCP PUERTO 43
+                // =====================================================
+                if (target.toLowerCase().endsWith(".mx")) {
+                    imprimirEnConsola("> Dominio .MX detectado");
+                    imprimirEnConsola("> Conectando a whois.mx:43...");
 
-                // Auto-búsqueda de saltos (Si IANA nos manda a Verisign u otro)
-                String nextServer = buscarServidorReferencia(resultado);
-                if (nextServer != null && !nextServer.isEmpty() && !nextServer.equals(whoisServer)) {
-                    imprimirEnConsola("> Redirección detectada a: " + nextServer);
-                    imprimirEnConsola("> Consultando servidor final...");
-                    resultado = realizarConsultaSocketWhois(nextServer, target);
-                }
+                    try {
+                        String resultado = realizarConsultaSocketWhois("whois.mx", target);
 
-                imprimirEnConsola("\n====================================");
-                imprimirEnConsola("📋 REPORTE WHOIS CRUDO");
-                imprimirEnConsola("====================================");
+                        if (resultado == null || resultado.trim().isEmpty()) {
+                            imprimirEnConsola("> WHOIS MX no devolvió información.");
+                            imprimirEnConsola("> El dominio puede usar protección RDAP.");
+                        } else {
+                            imprimirEnConsola("\n====================================");
+                            imprimirEnConsola("📋 REPORTE WHOIS (.MX)");
+                            imprimirEnConsola("====================================");
 
-                String[] lineas = resultado.split("\n");
-                boolean recibioDatos = false;
+                            String[] lineas = resultado.split("\n");
+                            boolean recibioDatos = false;
 
-                for (String linea : lineas) {
-                    // Limpiamos comentarios y líneas vacías para no ensuciar la consola
-                    if (!linea.trim().isEmpty() && !linea.startsWith("%") && !linea.startsWith("#") && !linea.startsWith(">>>")) {
-                        imprimirEnConsola(linea.trim());
-                        recibioDatos = true;
+                            for (String linea : lineas) {
+                                // Limpiamos comentarios para no ensuciar la consola
+                                if (!linea.trim().isEmpty() && !linea.startsWith("%") && !linea.startsWith("#") && !linea.startsWith(">>>")) {
+                                    imprimirEnConsola(linea.trim());
+                                    recibioDatos = true;
+                                }
+                            }
+
+                            if (!recibioDatos) {
+                                imprimirEnConsola("> [!] El servidor respondió, pero sin datos legibles.");
+                            }
+                            imprimirEnConsola("====================================");
+                        }
+                    } catch (Exception e) {
+                        imprimirEnConsola("> WHOIS MX no disponible.");
+                        imprimirEnConsola("> [INFO] Posible bloqueo del Puerto 43 TCP por tu red.");
                     }
                 }
+                // =====================================================
+                // RESTO DE DOMINIOS -> RDAP HTTPS DIRECTO
+                // =====================================================
+                else {
+                    imprimirEnConsola("> Consultando vía estándar RDAP HTTPS...");
+                    URL url = new URL("https://rdap.org/domain/" + target);
+                    HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
 
-                if (!recibioDatos) {
-                    imprimirEnConsola("> [!] Conexión establecida, pero el servidor no devolvió datos legibles.");
+                    conn.setInstanceFollowRedirects(false); // Para cazar los saltos a Verisign
+                    conn.setConnectTimeout(25000);
+                    conn.setReadTimeout(25000);
+                    conn.setRequestProperty("Accept", "application/json");
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+
+                    int code = conn.getResponseCode();
+
+                    // Perseguir redirecciones
+                    if (code == 301 || code == 302 || code == 307 || code == 308) {
+                        String newUrl = conn.getHeaderField("Location");
+                        conn = (HttpsURLConnection) new URL(newUrl).openConnection();
+                        conn.setConnectTimeout(25000);
+                        conn.setReadTimeout(25000);
+                        conn.setRequestProperty("Accept", "application/json");
+                        conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+                        code = conn.getResponseCode();
+                    }
+
+                    if (code != 200) {
+                        imprimirEnConsola("\n> [ERROR] Dominio no encontrado en RDAP (HTTP " + code + ")");
+                        return;
+                    }
+
+                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder jsonResponse = new StringBuilder();
+                    String linea;
+                    while ((linea = in.readLine()) != null) jsonResponse.append(linea);
+                    in.close();
+
+                    imprimirEnConsola("\n====================================");
+                    imprimirEnConsola("📋 REPORTE DE INTELIGENCIA RDAP");
+                    imprimirEnConsola("====================================");
+
+                    try {
+                        org.json.JSONObject rdapJson = new org.json.JSONObject(jsonResponse.toString());
+
+                        imprimirEnConsola("Dominio: " + rdapJson.optString("ldhName", "N/D"));
+
+                        if (rdapJson.has("status")) {
+                            org.json.JSONArray statusArr = rdapJson.getJSONArray("status");
+                            StringBuilder sbStatus = new StringBuilder();
+                            for(int i = 0; i < statusArr.length(); i++) {
+                                sbStatus.append(statusArr.getString(i)).append(" ");
+                            }
+                            imprimirEnConsola("Estado: " + sbStatus.toString());
+                        }
+
+                        // Fechas
+                        String reg = "N/D", exp = "N/D", upd = "N/D";
+                        if (rdapJson.has("events")) {
+                            org.json.JSONArray events = rdapJson.getJSONArray("events");
+                            for(int i = 0; i < events.length(); i++) {
+                                org.json.JSONObject ev = events.getJSONObject(i);
+                                String action = ev.optString("eventAction", "");
+                                String date = ev.optString("eventDate", "N/D").replace("T", " ").replace("Z","");
+                                if (action.equalsIgnoreCase("registration")) reg = date;
+                                else if (action.equalsIgnoreCase("expiration")) exp = date;
+                                else if (action.equalsIgnoreCase("last changed")) upd = date;
+                            }
+                        }
+                        imprimirEnConsola("\n[Fechas]");
+                        imprimirEnConsola("Creado: " + reg);
+                        imprimirEnConsola("Expira: " + exp);
+                        imprimirEnConsola("Última modif: " + upd);
+
+                        // DNS
+                        imprimirEnConsola("\n[Servidores DNS]");
+                        if (rdapJson.has("nameservers")) {
+                            org.json.JSONArray nsArr = rdapJson.getJSONArray("nameservers");
+                            for(int i = 0; i < nsArr.length(); i++) {
+                                imprimirEnConsola("- " + nsArr.getJSONObject(i).optString("ldhName", "N/D"));
+                            }
+                        } else {
+                            imprimirEnConsola("- No públicos");
+                        }
+                    } catch (Exception eJson) {
+                        imprimirEnConsola("> [!] No se pudo estructurar el JSON. Revisa Logs.");
+                    }
+
+                    imprimirEnConsola("====================================");
                 }
 
-                imprimirEnConsola("====================================");
                 imprimirEnConsola("> [✓] Consulta finalizada.");
-
             } catch (Exception e) {
-                imprimirEnConsola("\n> [ERROR] " + e.getMessage());
-                imprimirEnConsola("> [!] El Puerto 43 está bloqueado por tu red actual (ISP o Firewall).");
-                imprimirEnConsola("> [INFO] Intenta nuevamente conectado a la red de la Universidad.");
+                imprimirEnConsola("> [ERROR] Fallo crítico: " + e.getMessage());
             } finally {
                 cambiarEstadoBoton(btnWhois, true);
             }
@@ -319,9 +414,8 @@ public class ToolsFragment extends Fragment {
 
     // Método de bajo nivel para establecer conexión socket cruda (Port 43)
     private String realizarConsultaSocketWhois(String server, String target) throws Exception {
-        imprimirEnConsola("> Conectando a " + server + ":43...");
         Socket socket = new Socket();
-        // Timeout de 10 segundos para no dejar la app colgada si el puerto está dropeado
+        // Timeout ajustado a 10 segundos
         socket.connect(new InetSocketAddress(server, 43), 10000);
         socket.setSoTimeout(10000);
 
@@ -338,20 +432,6 @@ public class ToolsFragment extends Fragment {
         }
         socket.close();
         return sb.toString();
-    }
-
-    // Lógica para detectar si el servidor WHOIS nos manda a otro lado
-    private String buscarServidorReferencia(String texto) {
-        String[] lineas = texto.split("\n");
-        for (String linea : lineas) {
-            String lower = linea.toLowerCase().trim();
-            if (lower.startsWith("refer:")) {
-                return linea.substring(linea.indexOf(":") + 1).trim();
-            } else if (lower.startsWith("whois server:")) {
-                return linea.substring(linea.indexOf(":") + 1).trim();
-            }
-        }
-        return null;
     }
 
     // ==========================================================
