@@ -317,7 +317,11 @@ public class ToolsFragment extends Fragment {
                 // =====================================================
                 else {
                     imprimirEnConsola("> Detectando servidor RDAP del TLD...");
-                    URL url = new URL(obtenerServidorRDAP(target) + target);
+                    String servidorRDAP = obtenerServidorRDAP(target);
+
+                    URL url = new URL(
+                            servidorRDAP + target
+                    );
                     HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
 
                     conn.setInstanceFollowRedirects(false); // Para cazar los saltos a Verisign
@@ -340,7 +344,8 @@ public class ToolsFragment extends Fragment {
                     }
 
                     if (code != 200) {
-                        imprimirEnConsola("\n> [ERROR] Dominio no encontrado en RDAP (HTTP " + code + ")");
+                        imprimirEnConsola("\n> [ERROR] RDAP respondió HTTP " + code);
+                        imprimirEnConsola("> El dominio puede existir pero el servidor RDAP no tiene información.");
                         return;
                     }
 
@@ -438,14 +443,15 @@ public class ToolsFragment extends Fragment {
 
                 imprimirEnConsola("> [✓] Consulta finalizada.");
             } catch (Exception e) {
-                imprimirEnConsola("> [ERROR] Fallo crítico: " + e.getMessage());
+                imprimirEnConsola("> [ERROR] RDAP no disponible");
+                imprimirEnConsola("> Motivo: " + e.getMessage());
             } finally {
                 cambiarEstadoBoton(btnWhois, true);
             }
         }).start();
     }
 
-    // Método de bajo nivel para establecer conexión socket cruda (Port 43)
+    // Metodo de bajo nivel para establecer conexión socket cruda (Port 43)
     private String realizarConsultaSocketWhois(String server, String target) throws Exception {
         Socket socket = new Socket();
         // Timeout ajustado a 10 segundos
@@ -474,13 +480,23 @@ public class ToolsFragment extends Fragment {
         switch (tld) {
 
             case "com":
-                return "https://rdap.verisign.com/com/v1/domain/";
-
             case "net":
-                return "https://rdap.verisign.com/net/v1/domain/";
+                return "https://rdap.verisign.com/" + tld + "/v1/domain/";
 
             case "org":
                 return "https://rdap.publicinterestregistry.org/rdap/domain/";
+
+            case "io":
+                return "https://rdap.identitydigital.services/rdap/domain/";
+
+            case "dev":
+                return "https://rdap.org/domain/";
+
+            case "ai":
+                return "https://rdap.org/domain/";
+
+            case "mx":
+                return "https://rdap.mx/domain/";
 
             default:
                 return "https://rdap.org/domain/";
