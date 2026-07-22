@@ -65,6 +65,15 @@
         android:layout_marginBottom="16dp"
         app:cornerRadius="8dp"/>
 
+    <Spinner
+        android:id="@+id/spinnerFilter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="8dp"
+        android:backgroundTint="@color/neon_accent"
+        android:visibility="gone" /> <!-- Solo aparece cuando hay datos -->
+
     <!-- EL CONTADOR DINÁMICO (Inyectamos el ID aquí) -->
     <TextView
         android:id="@+id/tvDeviceCount"

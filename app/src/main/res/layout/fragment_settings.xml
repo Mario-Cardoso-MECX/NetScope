@@ -30,6 +30,32 @@
             android:textStyle="bold"
             android:layout_marginBottom="8dp"/>
 
+        <!-- Switch 0: Wake on LAN -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="@color/card_background"
+            android:padding="16dp"
+            android:layout_marginBottom="8dp"
+            android:gravity="center_vertical">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Wake on LAN" android:textColor="@color/text_primary" android:textSize="16sp" android:textStyle="bold"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Send magic packets" android:textColor="@color/text_secondary" android:textSize="12sp"/>
+            </LinearLayout>
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/switchWol"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:thumbTint="@color/neon_accent"
+                app:trackTint="#4000FF00" />
+        </LinearLayout>
+
+        <!-- Switch 1: Notificaciones -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -50,10 +76,11 @@
                 android:id="@+id/switchThreats"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:checked="true"
-                app:useMaterialThemeColors="true"/>
+                app:thumbTint="@color/neon_accent"
+                app:trackTint="#4000FF00" />
         </LinearLayout>
 
+        <!-- Switch 2: Auto Escaneo -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -74,7 +101,8 @@
                 android:id="@+id/switchAutoScan"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:useMaterialThemeColors="true"/>
+                app:thumbTint="@color/neon_accent"
+                app:trackTint="#4000FF00" />
         </LinearLayout>
 
         <TextView
@@ -115,6 +143,5 @@
             app:icon="@android:drawable/ic_menu_share"
             app:iconTint="@color/primary_background"
             app:iconGravity="textStart"/>
-
     </LinearLayout>
 </ScrollView>

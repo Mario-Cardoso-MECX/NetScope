@@ -88,4 +88,11 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceView
             ivIcon = itemView.findViewById(R.id.ivDeviceIcon);
         }
     }
+
+    // Metodo para actualizar la lista desde el filtro
+    public void actualizarLista(List<Device> nuevaLista) {
+        this.deviceList = nuevaLista;
+        notifyDataSetChanged();
+    }
+
 }

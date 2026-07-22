@@ -1,7 +1,12 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.NetScope" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+
+        <!-- MISMAS REGLAS PARA EL MODO NOCHE -->
+        <item name="android:statusBarColor">#0D1117</item>
+        <item name="android:windowLightStatusBar">false</item>
+
     </style>
+
+    <style name="Theme.NetScope" parent="Base.Theme.NetScope" />
 </resources>

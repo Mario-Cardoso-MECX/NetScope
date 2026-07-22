@@ -1,5 +1,6 @@
 package com.example.netscope.ui.main;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -7,8 +8,11 @@ import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.LinearInterpolator;
 import android.view.animation.RotateAnimation;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -43,6 +47,9 @@ public class RadarFragment extends Fragment {
     private ImageView ivRadarSweep;
     private FrameLayout dotsContainer;
 
+    // El nuevo menú desplegable
+    private Spinner spinnerFilter;
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -53,6 +60,7 @@ public class RadarFragment extends Fragment {
         tvDeviceCount = view.findViewById(R.id.tvDeviceCount);
         ivRadarSweep = view.findViewById(R.id.ivRadarSweep);
         dotsContainer = view.findViewById(R.id.dotsContainer);
+        spinnerFilter = view.findViewById(R.id.spinnerFilter);
 
         recyclerDevices.setLayoutManager(new LinearLayoutManager(getContext()));
 
@@ -64,11 +72,51 @@ public class RadarFragment extends Fragment {
         if (!liveDeviceList.isEmpty()) {
             tvDeviceCount.setText(liveDeviceList.size() + " dispositivos detectados");
             for(int i=0; i<liveDeviceList.size(); i++) dibujarPuntitoEnRadar();
+            if (spinnerFilter != null) spinnerFilter.setVisibility(View.VISIBLE);
         } else {
             tvDeviceCount.setText("0 dispositivos detectados");
         }
 
         btnStartScan.setOnClickListener(v -> iniciarEscaneo());
+
+        // ==========================================================
+        // LÓGICA DEL FILTRO (SPINNER NEÓN)
+        // ==========================================================
+        if (spinnerFilter != null) {
+            String[] categorias = {"Todos", "Windows", "Linux", "Apple", "Android", "Router", "Impresora", "Smart TV"};
+
+            ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<String>(getContext(), android.R.layout.simple_spinner_item, categorias) {
+                @NonNull
+                @Override
+                public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+                    TextView tv = (TextView) super.getView(position, convertView, parent);
+                    tv.setTextColor(Color.parseColor("#00FF00")); // Letra verde neón
+                    return tv;
+                }
+
+                @Override
+                public View getDropDownView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+                    TextView tv = (TextView) super.getDropDownView(position, convertView, parent);
+                    tv.setTextColor(Color.parseColor("#00FF00"));
+                    tv.setBackgroundColor(Color.parseColor("#12181B")); // Fondo oscuro
+                    tv.setPadding(30, 30, 30, 30);
+                    return tv;
+                }
+            };
+            spinnerFilter.setAdapter(spinnerAdapter);
+
+            spinnerFilter.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    aplicarFiltro(categorias[position]);
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+        }
+        // ==========================================================
 
         return view;
     }
@@ -82,9 +130,15 @@ public class RadarFragment extends Fragment {
         }
 
         liveDeviceList.clear();
-        adapter.notifyDataSetChanged();
+
+        // Usamos actualizarLista para restaurar la vista si estaba filtrada
+        adapter.actualizarLista(liveDeviceList);
+
         tvDeviceCount.setText("0 dispositivos detectados");
         dotsContainer.removeAllViews();
+
+        // Ocultamos el filtro mientras escanea
+        if (spinnerFilter != null) spinnerFilter.setVisibility(View.GONE);
 
         btnStartScan.setEnabled(false);
         btnStartScan.setText(getString(R.string.btn_scanning));
@@ -172,6 +226,12 @@ public class RadarFragment extends Fragment {
                         btnStartScan.setEnabled(true);
                         btnStartScan.setText(getString(R.string.btn_start_scan));
 
+                        // Mostramos el filtro al terminar
+                        if (spinnerFilter != null && !liveDeviceList.isEmpty()) {
+                            spinnerFilter.setVisibility(View.VISIBLE);
+                            spinnerFilter.setSelection(0); // Reiniciamos a "Todos"
+                        }
+
                         NetScopeDbHelper dbHelper = new NetScopeDbHelper(getContext());
                         dbHelper.guardarEscaneoCompleto(liveDeviceList);
 
@@ -206,7 +266,6 @@ public class RadarFragment extends Fragment {
         params.leftMargin = dotX;
         params.topMargin = dotY;
 
-        // EFECTO BLINK TIPO PELÍCULA
         android.view.animation.AlphaAnimation blink = new android.view.animation.AlphaAnimation(1.0f, 0.2f);
         blink.setDuration(600);
         blink.setRepeatMode(android.view.animation.Animation.REVERSE);
@@ -214,6 +273,44 @@ public class RadarFragment extends Fragment {
         dot.startAnimation(blink);
 
         dotsContainer.addView(dot, params);
+    }
+
+    // ==========================================================
+    // MOTOR DE FILTRADO
+    // ==========================================================
+    private void aplicarFiltro(String categoria) {
+        if (liveDeviceList.isEmpty()) return;
+
+        List<Device> filtrados = new ArrayList<>();
+        for (Device d : liveDeviceList) {
+            String v = d.getVendor() != null ? d.getVendor().toLowerCase() : "genérico";
+            String n = d.getName() != null ? d.getName().toLowerCase() : "";
+
+            if (categoria.equals("Todos")) {
+                filtrados.add(d);
+            } else if (categoria.equals("Windows") && (v.contains("windows") || n.contains("pc"))) {
+                filtrados.add(d);
+            } else if (categoria.equals("Linux") && (v.contains("linux") || v.contains("raspberry"))) {
+                filtrados.add(d);
+            } else if (categoria.equals("Apple") && (v.contains("apple") || n.contains("mac"))) {
+                filtrados.add(d);
+            } else if (categoria.equals("Android") && (n.contains("android") || v.contains("cubot"))) {
+                filtrados.add(d);
+            } else if (categoria.equals("Router") && (v.contains("enrutador") || n.contains("gateway") || d.getIp().endsWith(".1") || d.getIp().endsWith(".254"))) {
+                filtrados.add(d);
+            } else if (categoria.equals("Impresora") && v.contains("impresora")) {
+                filtrados.add(d);
+            } else if (categoria.equals("Smart TV") && (n.contains("tv") || v.contains("roku") || v.contains("cast") || v.contains("samsung"))) {
+                filtrados.add(d);
+            }
+        }
+
+        // Llamamos al método que creaste en el Adapter
+        if (adapter != null) {
+            adapter.actualizarLista(filtrados);
+        }
+
+        tvDeviceCount.setText(filtrados.size() + " " + categoria + " detectados");
     }
 
     private List<String> getIpsToScan() {
