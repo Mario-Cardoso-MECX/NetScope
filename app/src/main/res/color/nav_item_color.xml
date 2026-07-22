@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_checked="true" android:color="#00FF00" /> <!-- Verde Neón cuando está seleccionado -->
-    <item android:color="#666666" /> <!-- Gris apagado cuando no está seleccionado -->
+
+    <!-- Verde neón -->
+    <item
+        android:state_checked="true"
+        android:color="#00FF66"/>
+
+    <!-- Gris cuando no está seleccionado -->
+    <item
+        android:color="#666666"/>
+
 </selector>
