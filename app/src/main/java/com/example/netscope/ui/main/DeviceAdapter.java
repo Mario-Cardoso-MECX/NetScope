@@ -34,41 +34,32 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceView
     public void onBindViewHolder(@NonNull DeviceViewHolder holder, int position) {
         Device device = deviceList.get(position);
 
-        // 1. Textos principales
         holder.tvName.setText(device.getName());
         holder.tvIp.setText(device.getIp());
 
-        // 2. Extracción del Vendor (Fabricante)
         String vendor = device.getVendor() != null ? device.getVendor() : "Genérico";
         holder.tvVendor.setText(vendor);
 
-        // 3. LÓGICA DE ÍCONOS DINÁMICOS
+        // LÓGICA DE ÍCONOS DINÁMICOS
         String nameLower = device.getName().toLowerCase();
         String vendorLower = vendor.toLowerCase();
         String ip = device.getIp();
 
-        // Regla A: Si la IP termina en .1 o .254, casi seguro es el Módem/Router de la casa
-        if (ip.endsWith(".1") || ip.endsWith(".254") || nameLower.contains("gateway")) {
-            holder.ivIcon.setImageResource(android.R.drawable.ic_menu_share); // Ícono de nodos/red
-        }
-        // Regla B: Pantallas, Rokus y Smart TVs
-        else if (nameLower.contains("tv") || nameLower.contains("roku") || nameLower.contains("chromecast")) {
-            holder.ivIcon.setImageResource(android.R.drawable.ic_menu_gallery); // Ícono de marco/pantalla
-        }
-        // Regla C: Teléfonos (Xiaomi, Samsung, Cubot, etc.)
-        else if (nameLower.contains("android") || vendorLower.contains("xiaomi") || vendorLower.contains("samsung") || vendorLower.contains("cubot")) {
-            holder.ivIcon.setImageResource(android.R.drawable.ic_menu_call); // Ícono de teléfono nativo
-        }
-        // Regla D: Computadoras (Mac, PC, Laptops)
-        else if (nameLower.contains("mac") || nameLower.contains("pc") || nameLower.contains("desktop") || vendorLower.contains("apple")) {
-            holder.ivIcon.setImageResource(android.R.drawable.ic_menu_info_details); // Ícono de sistema/info
-        }
-        // Por Defecto: Dispositivo Genérico
-        else {
-            holder.ivIcon.setImageResource(android.R.drawable.ic_menu_mylocation); // Ícono tipo radar/objetivo
+        if (ip.endsWith(".1") || ip.endsWith(".254") || vendorLower.contains("enrutador") || nameLower.contains("gateway")) {
+            holder.ivIcon.setImageResource(android.R.drawable.ic_dialog_dialer);
+        } else if (nameLower.contains("tv") || vendorLower.contains("roku") || vendorLower.contains("cast") || vendorLower.contains("samsung")) {
+            holder.ivIcon.setImageResource(android.R.drawable.ic_menu_gallery);
+        } else if (vendorLower.contains("windows") || vendorLower.contains("linux") || vendorLower.contains("apple") || vendorLower.contains("mac")) {
+            // CORREGIDO: Usamos un icono de sistema universal que sí existe
+            holder.ivIcon.setImageResource(android.R.drawable.ic_menu_info_details);
+        } else if (vendorLower.contains("impresora")) {
+            holder.ivIcon.setImageResource(android.R.drawable.ic_menu_agenda);
+        } else if (nameLower.contains("android") || vendorLower.contains("cubot")) {
+            holder.ivIcon.setImageResource(android.R.drawable.ic_menu_call);
+        } else {
+            holder.ivIcon.setImageResource(android.R.drawable.ic_menu_mylocation);
         }
 
-        // 4. Tu lógica intacta: El clic en la tarjeta
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(v.getContext(), com.example.netscope.ui.details.DetailsActivity.class);
             intent.putExtra("TARGET_IP", device.getIp());
@@ -88,7 +79,6 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceView
 
         public DeviceViewHolder(@NonNull View itemView) {
             super(itemView);
-            // Enlazamos con los IDs del nuevo XML que acabamos de crear
             tvName = itemView.findViewById(R.id.tvDeviceName);
             tvIp = itemView.findViewById(R.id.tvDeviceIp);
             tvVendor = itemView.findViewById(R.id.tvDeviceVendor);

@@ -323,15 +323,24 @@ public class ToolsFragment extends Fragment {
                     }
                 }
                 // =====================================================
-                // RESTO DE DOMINIOS -> RDAP DIRECTO SEGÚN TLD
+                // RESTO DE DOMINIOS O IPs -> RDAP DIRECTO
                 // =====================================================
                 else {
-                    imprimirEnConsola("> Detectando servidor RDAP del TLD...");
-                    String servidorRDAP = obtenerServidorRDAP(target);
+                    imprimirEnConsola("> Detectando protocolo RDAP...");
 
-                    URL url = new URL(
-                            servidorRDAP + target
-                    );
+                    // Identificamos si el texto ingresado es una IP o un Dominio
+                    boolean esIp = android.util.Patterns.IP_ADDRESS.matcher(target).matches();
+                    String urlPath;
+
+                    if (esIp) {
+                        urlPath = "https://rdap.org/ip/" + target;
+                        imprimirEnConsola("> Consultando información para IPv4/IPv6...");
+                    } else {
+                        urlPath = obtenerServidorRDAP(target) + target;
+                        imprimirEnConsola("> Consultando servidor RDAP del TLD...");
+                    }
+
+                    URL url = new URL(urlPath);
                     HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
 
                     conn.setInstanceFollowRedirects(false); // Para cazar los saltos a Verisign
@@ -355,7 +364,7 @@ public class ToolsFragment extends Fragment {
 
                     if (code != 200) {
                         imprimirEnConsola("\n> [ERROR] RDAP respondió HTTP " + code);
-                        imprimirEnConsola("> El dominio puede existir pero el servidor RDAP no tiene información.");
+                        imprimirEnConsola("> El objetivo puede existir pero el servidor RDAP no tiene información.");
                         return;
                     }
 
@@ -372,51 +381,27 @@ public class ToolsFragment extends Fragment {
                     try {
                         org.json.JSONObject rdapJson = new org.json.JSONObject(jsonResponse.toString());
 
-                        imprimirEnConsola("Dominio: " + rdapJson.optString("ldhName", "N/D"));
+                        // Para dominios muestra ldhName, para IPs muestra handle/name
+                        String nombre = rdapJson.optString("ldhName", rdapJson.optString("name", "N/D"));
+                        imprimirEnConsola("Objetivo: " + nombre);
 
                         if (rdapJson.has("status")) {
-
                             org.json.JSONArray statusArr = rdapJson.getJSONArray("status");
-
-                            imprimirEnConsola("\n[Protecciones del Dominio]");
-
+                            imprimirEnConsola("\n[Protecciones / Estatus]");
                             for(int i = 0; i < statusArr.length(); i++) {
-
                                 String estado = statusArr.getString(i);
-
                                 switch (estado) {
-
-                                    case "client delete prohibited":
-                                        imprimirEnConsola("✓ Bloqueo contra eliminación");
-                                        break;
-
-                                    case "client transfer prohibited":
-                                        imprimirEnConsola("✓ Bloqueo contra transferencia");
-                                        break;
-
-                                    case "client update prohibited":
-                                        imprimirEnConsola("✓ Bloqueo contra modificaciones");
-                                        break;
-
-                                    case "server delete prohibited":
-                                        imprimirEnConsola("✓ Protección del Registry (eliminación)");
-                                        break;
-
-                                    case "server transfer prohibited":
-                                        imprimirEnConsola("✓ Protección del Registry (transferencia)");
-                                        break;
-
-                                    case "server update prohibited":
-                                        imprimirEnConsola("✓ Protección del Registry (actualización)");
-                                        break;
-
-                                    default:
-                                        imprimirEnConsola("- " + estado);
+                                    case "client delete prohibited": imprimirEnConsola("✓ Bloqueo contra eliminación"); break;
+                                    case "client transfer prohibited": imprimirEnConsola("✓ Bloqueo contra transferencia"); break;
+                                    case "client update prohibited": imprimirEnConsola("✓ Bloqueo contra modificaciones"); break;
+                                    case "server delete prohibited": imprimirEnConsola("✓ Protección del Registry (eliminación)"); break;
+                                    case "server transfer prohibited": imprimirEnConsola("✓ Protección del Registry (transferencia)"); break;
+                                    case "server update prohibited": imprimirEnConsola("✓ Protección del Registry (actualización)"); break;
+                                    default: imprimirEnConsola("- " + estado);
                                 }
                             }
                         }
 
-                        // Fechas
                         String reg = "N/D", exp = "N/D", upd = "N/D";
                         if (rdapJson.has("events")) {
                             org.json.JSONArray events = rdapJson.getJSONArray("events");
@@ -434,16 +419,6 @@ public class ToolsFragment extends Fragment {
                         imprimirEnConsola("Expira: " + exp);
                         imprimirEnConsola("Última modif: " + upd);
 
-                        // DNS
-                        imprimirEnConsola("\n[Servidores DNS]");
-                        if (rdapJson.has("nameservers")) {
-                            org.json.JSONArray nsArr = rdapJson.getJSONArray("nameservers");
-                            for(int i = 0; i < nsArr.length(); i++) {
-                                imprimirEnConsola("- " + nsArr.getJSONObject(i).optString("ldhName", "N/D"));
-                            }
-                        } else {
-                            imprimirEnConsola("- No públicos");
-                        }
                     } catch (Exception eJson) {
                         imprimirEnConsola("> [!] No se pudo estructurar el JSON. Revisa Logs.");
                     }

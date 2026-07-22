@@ -41,7 +41,7 @@ public class RadarFragment extends Fragment {
     private MaterialButton btnStartScan;
     private TextView tvDeviceCount;
     private ImageView ivRadarSweep;
-    private FrameLayout dotsContainer; // El contenedor de los puntitos
+    private FrameLayout dotsContainer;
 
     @Nullable
     @Override
@@ -63,7 +63,6 @@ public class RadarFragment extends Fragment {
 
         if (!liveDeviceList.isEmpty()) {
             tvDeviceCount.setText(liveDeviceList.size() + " dispositivos detectados");
-            // Si ya hay dispositivos, repintar los puntos al volver a la pestaña
             for(int i=0; i<liveDeviceList.size(); i++) dibujarPuntitoEnRadar();
         } else {
             tvDeviceCount.setText("0 dispositivos detectados");
@@ -82,7 +81,6 @@ public class RadarFragment extends Fragment {
             return;
         }
 
-        // Limpiar lista, texto y borrar TODOS los puntitos anteriores
         liveDeviceList.clear();
         adapter.notifyDataSetChanged();
         tvDeviceCount.setText("0 dispositivos detectados");
@@ -91,7 +89,6 @@ public class RadarFragment extends Fragment {
         btnStartScan.setEnabled(false);
         btnStartScan.setText(getString(R.string.btn_scanning));
 
-        // 🌀 INICIA ANIMACIÓN Y PRENDE LA LUZ
         RotateAnimation rotate = new RotateAnimation(0, 360,
                 Animation.RELATIVE_TO_SELF, 0.5f,
                 Animation.RELATIVE_TO_SELF, 0.5f);
@@ -100,7 +97,7 @@ public class RadarFragment extends Fragment {
         rotate.setInterpolator(new LinearInterpolator());
 
         if (ivRadarSweep != null) {
-            ivRadarSweep.setVisibility(View.VISIBLE); // <-- AQUÍ PRENDEMOS LA LUZ
+            ivRadarSweep.setVisibility(View.VISIBLE);
             ivRadarSweep.startAnimation(rotate);
         }
 
@@ -133,7 +130,6 @@ public class RadarFragment extends Fragment {
                         adapter.notifyItemInserted(liveDeviceList.size() - 1);
                         tvDeviceCount.setText(liveDeviceList.size() + " dispositivos detectados");
 
-                        // ✨ DIBUJAMOS EL PUNTITO EN EL RADAR
                         dibujarPuntitoEnRadar();
 
                         new Thread(() -> {
@@ -168,10 +164,9 @@ public class RadarFragment extends Fragment {
 
                         adapter.notifyDataSetChanged();
 
-                        // 🛑 DETENER ANIMACIÓN Y APAGAR LA LUZ
                         if (ivRadarSweep != null) {
                             ivRadarSweep.clearAnimation();
-                            ivRadarSweep.setVisibility(View.INVISIBLE); // <-- AQUÍ LA APAGAMOS
+                            ivRadarSweep.setVisibility(View.INVISIBLE);
                         }
 
                         btnStartScan.setEnabled(true);
@@ -189,42 +184,34 @@ public class RadarFragment extends Fragment {
         });
     }
 
-    // =========================================================================
-    // TRIGONOMETRÍA PARA INYECTAR PUNTOS DINÁMICOS EN EL RADAR (CON LÍMITE)
-    // =========================================================================
     private void dibujarPuntitoEnRadar() {
         if (getContext() == null || dotsContainer.getWidth() == 0) return;
 
-        // 🛡️ EL ESCUDO ANTI-SATURACIÓN (Máximo 20 puntitos visuales)
-        if (dotsContainer.getChildCount() >= 20) {
-            return; // Si ya hay 20 puntos en el radar, ignoramos el dibujo visual.
-        }
+        if (dotsContainer.getChildCount() >= 20) return;
 
-        // Tamaño del contenedor (radio del radar)
         int size = dotsContainer.getWidth();
-        int radioVisual = (size / 2) - 20; // 20px de margen para no salirse del borde
+        int radioVisual = (size / 2) - 20;
 
-        // Generamos un ángulo (0 a 360 grados) y una distancia (0 al borde) aleatorios
         double angle = Math.random() * 2 * Math.PI;
         double r = Math.random() * radioVisual;
 
-        // Convertimos a coordenadas X y Y cartesianas
-        int dotSize = (int) (8 * getResources().getDisplayMetrics().density); // 8dp de tamaño
+        int dotSize = (int) (8 * getResources().getDisplayMetrics().density);
         int dotX = (int) ((size / 2) + r * Math.cos(angle)) - (dotSize / 2);
         int dotY = (int) ((size / 2) + r * Math.sin(angle)) - (dotSize / 2);
 
-        // Creamos la imagen del puntito
         ImageView dot = new ImageView(getContext());
         dot.setImageResource(R.drawable.radar_dot);
 
-        // Lo posicionamos exactamente en sus coordenadas X,Y
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(dotSize, dotSize);
         params.leftMargin = dotX;
         params.topMargin = dotY;
 
-        // Efecto visual hacker: un pequeño parpadeo al nacer
-        dot.setAlpha(0f);
-        dot.animate().alpha(1f).setDuration(400).start();
+        // EFECTO BLINK TIPO PELÍCULA
+        android.view.animation.AlphaAnimation blink = new android.view.animation.AlphaAnimation(1.0f, 0.2f);
+        blink.setDuration(600);
+        blink.setRepeatMode(android.view.animation.Animation.REVERSE);
+        blink.setRepeatCount(android.view.animation.Animation.INFINITE);
+        dot.startAnimation(blink);
 
         dotsContainer.addView(dot, params);
     }

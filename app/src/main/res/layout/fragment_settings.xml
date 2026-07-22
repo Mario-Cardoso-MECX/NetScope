@@ -21,7 +21,6 @@
             android:letterSpacing="0.1"
             android:layout_marginBottom="24dp"/>
 
-        <!-- SECCIÓN: PREFERENCIAS -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -31,7 +30,6 @@
             android:textStyle="bold"
             android:layout_marginBottom="8dp"/>
 
-        <!-- Switch 1: Notificaciones -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -56,7 +54,6 @@
                 app:useMaterialThemeColors="true"/>
         </LinearLayout>
 
-        <!-- Switch 2: Auto Escaneo -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -71,7 +68,7 @@
                 android:layout_weight="1"
                 android:orientation="vertical">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Auto-Escaneo" android:textColor="@color/text_primary" android:textSize="16sp" android:textStyle="bold"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Escaneo en segundo plano (30 min)" android:textColor="@color/text_secondary" android:textSize="12sp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Escaneo en segundo plano (15 min)" android:textColor="@color/text_secondary" android:textSize="12sp"/>
             </LinearLayout>
             <com.google.android.material.switchmaterial.SwitchMaterial
                 android:id="@+id/switchAutoScan"
@@ -80,7 +77,6 @@
                 app:useMaterialThemeColors="true"/>
         </LinearLayout>
 
-        <!-- SECCIÓN: ACERCA DE -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -107,7 +103,6 @@
             </RelativeLayout>
         </LinearLayout>
 
-        <!-- BOTÓN EXPORTAR REPORTES -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnExportReport"
             android:layout_width="match_parent"
