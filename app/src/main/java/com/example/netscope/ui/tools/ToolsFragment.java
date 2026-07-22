@@ -258,7 +258,7 @@ public class ToolsFragment extends Fragment {
     }
 
     // ==========================================================
-    // 5. WHOIS (Híbrido: TCP 43 para .mx / RDAP Nativo para el resto)
+    // 5. WHOIS (Híbrido: WHOIS TCP 43 para .mx / RDAP directo por TLD)
     // ==========================================================
     private void iniciarWhois() {
         String target = etTarget.getText().toString().trim();
@@ -313,11 +313,11 @@ public class ToolsFragment extends Fragment {
                     }
                 }
                 // =====================================================
-                // RESTO DE DOMINIOS -> RDAP HTTPS DIRECTO
+                // RESTO DE DOMINIOS -> RDAP DIRECTO SEGÚN TLD
                 // =====================================================
                 else {
-                    imprimirEnConsola("> Consultando vía estándar RDAP HTTPS...");
-                    URL url = new URL("https://rdap.org/domain/" + target);
+                    imprimirEnConsola("> Detectando servidor RDAP del TLD...");
+                    URL url = new URL(obtenerServidorRDAP(target) + target);
                     HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
 
                     conn.setInstanceFollowRedirects(false); // Para cazar los saltos a Verisign
@@ -360,12 +360,45 @@ public class ToolsFragment extends Fragment {
                         imprimirEnConsola("Dominio: " + rdapJson.optString("ldhName", "N/D"));
 
                         if (rdapJson.has("status")) {
+
                             org.json.JSONArray statusArr = rdapJson.getJSONArray("status");
-                            StringBuilder sbStatus = new StringBuilder();
+
+                            imprimirEnConsola("\n[Protecciones del Dominio]");
+
                             for(int i = 0; i < statusArr.length(); i++) {
-                                sbStatus.append(statusArr.getString(i)).append(" ");
+
+                                String estado = statusArr.getString(i);
+
+                                switch (estado) {
+
+                                    case "client delete prohibited":
+                                        imprimirEnConsola("✓ Bloqueo contra eliminación");
+                                        break;
+
+                                    case "client transfer prohibited":
+                                        imprimirEnConsola("✓ Bloqueo contra transferencia");
+                                        break;
+
+                                    case "client update prohibited":
+                                        imprimirEnConsola("✓ Bloqueo contra modificaciones");
+                                        break;
+
+                                    case "server delete prohibited":
+                                        imprimirEnConsola("✓ Protección del Registry (eliminación)");
+                                        break;
+
+                                    case "server transfer prohibited":
+                                        imprimirEnConsola("✓ Protección del Registry (transferencia)");
+                                        break;
+
+                                    case "server update prohibited":
+                                        imprimirEnConsola("✓ Protección del Registry (actualización)");
+                                        break;
+
+                                    default:
+                                        imprimirEnConsola("- " + estado);
+                                }
                             }
-                            imprimirEnConsola("Estado: " + sbStatus.toString());
                         }
 
                         // Fechas
@@ -432,6 +465,26 @@ public class ToolsFragment extends Fragment {
         }
         socket.close();
         return sb.toString();
+    }
+
+    private String obtenerServidorRDAP(String dominio) {
+
+        String tld = dominio.substring(dominio.lastIndexOf(".") + 1).toLowerCase();
+
+        switch (tld) {
+
+            case "com":
+                return "https://rdap.verisign.com/com/v1/domain/";
+
+            case "net":
+                return "https://rdap.verisign.com/net/v1/domain/";
+
+            case "org":
+                return "https://rdap.publicinterestregistry.org/rdap/domain/";
+
+            default:
+                return "https://rdap.org/domain/";
+        }
     }
 
     // ==========================================================
