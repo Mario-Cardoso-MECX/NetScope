@@ -19,7 +19,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URL;
@@ -30,12 +29,17 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.HttpsURLConnection;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
 public class ToolsFragment extends Fragment {
 
     // ==========================================================
     // MEMORIA PERSISTENTE (Solución a la amnesia de Fragments)
     // ==========================================================
-    private static StringBuilder historialConsola = new StringBuilder("> Consola en espera...\n> Ingresa un objetivo y selecciona una herramienta.\n> (Mantén presionado aquí para copiar el resultado)");
+    private static final StringBuilder historialConsola = new StringBuilder("> Consola en espera...\n> Ingresa un objetivo y selecciona una herramienta.\n> (Mantén presionado aquí para copiar el resultado)");
 
     // Variables de UI
     private EditText etTarget;
@@ -297,80 +301,240 @@ public class ToolsFragment extends Fragment {
     }
 
     // ==========================================================
-    // 5. WHOIS RECURSIVO DE DOBLE SALTO (Nivel Industrial)
+    // 5. WHOIS (WebView Fantasma para .mx / RDAP Nativo para otros)
     // ==========================================================
     private void iniciarWhois() {
         String target = etTarget.getText().toString().trim();
-        if (target.isEmpty()) { imprimirEnConsola("> [ERROR] Ingresa un dominio válido (ej. uptx.edu.mx)."); return; }
+
+        if (target.isEmpty()) {
+            imprimirEnConsola("> [ERROR] Ingresa un dominio válido.");
+            return;
+        }
 
         cambiarEstadoBoton(btnWhois, false);
-        limpiarConsola("> [Salto 1] Consultando servidor raíz (whois.iana.org)...");
+        limpiarConsola("> Consultando WHOIS para: " + target);
 
-        new Thread(() -> {
-            String servidorActual = "whois.iana.org";
-            String servidorSecundario = null;
+        // =====================================================
+        // DOMINIOS .MX -> MOTOR WEBVIEW JSF INVISIBLE
+        // =====================================================
+        if (target.toLowerCase().endsWith(".mx")) {
+            imprimirEnConsola("> Detectado dominio .MX");
+            imprimirEnConsola("> Abriendo navegador fantasma (Bypass JSF activo)...");
 
-            try {
-                // --- SALTO 1: Preguntar al servidor raíz ---
-                try (Socket socket = new Socket()) {
-                    socket.connect(new InetSocketAddress(servidorActual, 43), 30000);
-                    socket.setSoTimeout(30000);
+            if (getActivity() != null) {
+                // El WebView OBLIGATORIAMENTE debe correr en el Hilo Principal (UI Thread)
+                getActivity().runOnUiThread(() -> {
+                    WhoisWebViewManager webViewManager = new WhoisWebViewManager(requireContext());
+                    webViewManager.startWhois(target, new WhoisWebViewManager.WhoisCallback() {
+                        @Override
+                        public void onSuccess(String rawHtml) {
+                            // Procesamos el HTML resultante en un hilo de fondo
+                            new Thread(() -> procesarHtmlWhoisMx(rawHtml)).start();
+                        }
 
-                    PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                    BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                        @Override
+                        public void onError(String error) {
+                            imprimirEnConsola("> " + error);
+                            cambiarEstadoBoton(btnWhois, true);
+                        }
+                    });
+                });
+            }
+        }
+        // =====================================================
+        // RESTO DE DOMINIOS -> RDAP CON PARSER JSON NATIVO
+        // =====================================================
+        else {
+            new Thread(() -> {
+                try {
+                    imprimirEnConsola("> Consultando vía estándar RDAP para " + target + "...");
+                    URL url = new URL("https://rdap.org/domain/" + target);
+                    HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
 
-                    out.print(target + "\r\n");
-                    out.flush();
+                    conn.setInstanceFollowRedirects(false); // Interceptamos redirecciones
+                    conn.setConnectTimeout(25000);
+                    conn.setReadTimeout(25000);
+                    conn.setRequestProperty("Accept", "application/json");
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
 
+                    int code = conn.getResponseCode();
+
+                    // TRUCO DE INGENIERO: Seguir las redirecciones a Verisign
+                    if (code == 301 || code == 302 || code == 307 || code == 308) {
+                        String newUrl = conn.getHeaderField("Location");
+                        conn = (HttpsURLConnection) new URL(newUrl).openConnection();
+                        conn.setConnectTimeout(25000);
+                        conn.setReadTimeout(25000);
+                        conn.setRequestProperty("Accept", "application/json");
+                        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+                        code = conn.getResponseCode();
+                    }
+
+                    if (code != 200) {
+                        imprimirEnConsola("\n> [ERROR] Dominio no encontrado o sin soporte RDAP (Código HTTP: " + code + ")");
+                        cambiarEstadoBoton(btnWhois, true);
+                        return;
+                    }
+
+                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder jsonResponse = new StringBuilder();
                     String linea;
                     while ((linea = in.readLine()) != null) {
-                        if (!linea.trim().isEmpty() && !linea.startsWith("%")) {
-                            imprimirEnConsola(linea);
+                        jsonResponse.append(linea);
+                    }
+                    in.close();
 
-                            // Analizamos la respuesta buscando redirecciones automáticas (Ej. "refer: whois.mx" o "whois:")
-                            String lower = linea.toLowerCase().trim();
-                            if (lower.startsWith("refer:") || lower.startsWith("whois:")) {
-                                String[] partes = linea.split(":");
-                                if (partes.length > 1) {
-                                    servidorSecundario = partes[1].trim();
+                    String json = jsonResponse.toString();
+
+                    imprimirEnConsola("\n[✓] Servidor responsable contactado con éxito.\n");
+                    imprimirEnConsola("==================================");
+                    imprimirEnConsola("📋 REPORTE DE INTELIGENCIA RDAP");
+                    imprimirEnConsola("==================================");
+
+                    // USAMOS org.json.JSONObject nativo de Android para extraer los datos reales sin fallas
+                    try {
+                        org.json.JSONObject rdapJson = new org.json.JSONObject(json);
+
+                        // Dominio
+                        imprimirEnConsola("Dominio:");
+                        imprimirEnConsola("  " + rdapJson.optString("ldhName", "No disponible"));
+
+                        // Estado
+                        imprimirEnConsola("\nEstado:");
+                        if (rdapJson.has("status")) {
+                            org.json.JSONArray statusArray = rdapJson.getJSONArray("status");
+                            StringBuilder estados = new StringBuilder();
+                            for(int i = 0; i < statusArray.length(); i++) {
+                                estados.append(statusArray.getString(i)).append(i < statusArray.length() - 1 ? " / " : "");
+                            }
+                            imprimirEnConsola("  " + estados.toString());
+                        } else {
+                            imprimirEnConsola("  Desconocido");
+                        }
+
+                        // Fechas de Registro y Expiración (Buscadas dentro del arreglo "events")
+                        String fechaRegistro = "No disponible";
+                        String fechaExpiracion = "No disponible";
+                        String ultimaActualizacion = "No disponible";
+
+                        if (rdapJson.has("events")) {
+                            org.json.JSONArray events = rdapJson.getJSONArray("events");
+                            for (int i = 0; i < events.length(); i++) {
+                                org.json.JSONObject event = events.getJSONObject(i);
+                                if (event.has("eventAction") && event.has("eventDate")) {
+                                    String action = event.getString("eventAction");
+                                    String date = event.getString("eventDate").replace("T", " ").replace("Z", "");
+
+                                    if (action.equalsIgnoreCase("registration")) fechaRegistro = date;
+                                    else if (action.equalsIgnoreCase("expiration")) fechaExpiracion = date;
+                                    else if (action.equalsIgnoreCase("last changed")) ultimaActualizacion = date;
                                 }
                             }
                         }
+
+                        imprimirEnConsola("\nFechas del Registro:");
+                        imprimirEnConsola("  Creado/Registrado: " + fechaRegistro);
+                        imprimirEnConsola("  Expira: " + fechaExpiracion);
+                        if (!ultimaActualizacion.equals("No disponible")) {
+                            imprimirEnConsola("  Última modif.: " + ultimaActualizacion);
+                        }
+
+                        // Servidores DNS limpios
+                        imprimirEnConsola("\nServidores DNS (Nameservers):");
+                        if (rdapJson.has("nameservers")) {
+                            org.json.JSONArray nsArray = rdapJson.getJSONArray("nameservers");
+                            for(int i = 0; i < nsArray.length(); i++) {
+                                org.json.JSONObject ns = nsArray.getJSONObject(i);
+                                imprimirEnConsola("  - " + ns.optString("ldhName", "Desconocido"));
+                            }
+                        } else {
+                            imprimirEnConsola("  No expuestos en cabecera pública");
+                        }
+
+                    } catch (Exception jsonEx) {
+                        // En caso de que un servidor envíe JSON malformado, usamos el parser viejo de respaldo
+                        imprimirEnConsola("> [!] Advertencia: No se pudo formatear el JSON. Mostrando datos en bruto.");
+                        imprimirEnConsola("Dominio: " + extraerValorJson(json, "ldhName"));
                     }
+
+                    imprimirEnConsola("==================================");
+                    imprimirEnConsola("> [✓] Auditoría RDAP completada con éxito.");
+
+                } catch (Exception e) {
+                    imprimirEnConsola("> [ERROR] Fallo crítico RDAP: " + e.getMessage());
+                } finally {
+                    cambiarEstadoBoton(btnWhois, true);
+                }
+            }).start();
+        }
+    }
+
+    // Parser dedicado exclusivo para leer el DOM que extrajo el WebView
+    private void procesarHtmlWhoisMx(String rawHtml) {
+        imprimirEnConsola("\n====================================");
+        imprimirEnConsola("📋 WHOIS OFICIAL (.MX)");
+        imprimirEnConsola("====================================");
+
+        try {
+            // Usamos Jsoup ÚNICAMENTE como parser de texto local (DOM), no para peticiones web
+            Document doc = Jsoup.parse(rawHtml);
+            Elements tablas = doc.select("table");
+            boolean encontroDatos = false;
+
+            for (Element tabla : tablas) {
+                // Saltamos el header de búsqueda
+                if (tabla.text().contains("Consultar WHOIS") || tabla.text().contains("Nombre de Dominio")) {
+                    continue;
                 }
 
-                // --- SALTO 2: Salto automático al servidor específico si existe ---
-                if (servidorSecundario != null && !servidorSecundario.isEmpty()) {
-                    imprimirEnConsola("\n> [Salto 2] Redirección detectada hacia: " + servidorSecundario);
-                    imprimirEnConsola("> Consultando base de datos profunda...");
+                Elements filas = tabla.select("tr");
+                for (Element fila : filas) {
+                    Elements columnas = fila.select("td, th");
+                    if (columnas.size() >= 2) {
+                        String clave = columnas.get(0).text().trim();
+                        String valor = columnas.get(1).text().trim();
 
-                    try (Socket socket2 = new Socket()) {
-                        socket2.connect(new InetSocketAddress(servidorSecundario, 43), 30000);
-                        socket2.setSoTimeout(30000);
+                        // Limpiamos basura HTML residual
+                        valor = valor.replace("\u00a0", " ").trim();
 
-                        PrintWriter out2 = new PrintWriter(socket2.getOutputStream(), true);
-                        BufferedReader in2 = new BufferedReader(new InputStreamReader(socket2.getInputStream()));
-
-                        out2.print(target + "\r\n");
-                        out2.flush();
-
-                        String linea2;
-                        while ((linea2 = in2.readLine()) != null) {
-                            if (!linea2.trim().isEmpty() && !linea2.startsWith("%")) {
-                                imprimirEnConsola(linea2);
-                            }
+                        if (!clave.isEmpty() && !valor.isEmpty()) {
+                            imprimirEnConsola(clave + ": " + valor);
+                            encontroDatos = true;
+                        }
+                    } else if (columnas.size() == 1) {
+                        String subtitulo = columnas.get(0).text().trim();
+                        if (!subtitulo.isEmpty()) {
+                            imprimirEnConsola("\n--- " + subtitulo + " ---");
                         }
                     }
                 }
-
-                imprimirEnConsola("> [✓] Consulta WHOIS recursiva finalizada.");
-
-            } catch (Exception e) {
-                imprimirEnConsola("> [ERROR] Fallo en la red durante la consulta recursiva. Verifica tu internet o el dominio.");
-            } finally {
-                cambiarEstadoBoton(btnWhois, true);
             }
-        }).start();
+
+            if (!encontroDatos) {
+                imprimirEnConsola("> Información protegida o dominio inexistente.");
+            }
+            imprimirEnConsola("====================================");
+            imprimirEnConsola("> Consulta completada.");
+
+        } catch (Exception e) {
+            imprimirEnConsola("> [ERROR] Fallo al parsear la estructura web.");
+        } finally {
+            cambiarEstadoBoton(btnWhois, true);
+        }
+    }
+
+    private String extraerValorJson(String json, String clave) {
+        try {
+            String searchKey = "\"" + clave + "\":";
+            int startIndex = json.indexOf(searchKey);
+            if (startIndex == -1) return "No disponible";
+            startIndex += searchKey.length();
+            if (json.charAt(startIndex) == '"') {
+                int endIndex = json.indexOf('"', startIndex + 1);
+                return json.substring(startIndex + 1, endIndex);
+            }
+        } catch (Exception e) {}
+        return "N/D";
     }
 
     // ==========================================================
