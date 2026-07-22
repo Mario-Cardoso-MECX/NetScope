@@ -32,6 +32,7 @@ public class ToolsFragment extends Fragment {
     // Tarjetas de Herramientas
     private View btnPortScanner;
     private View btnDnsLookup;
+    private View btnPing;
 
     // Iconos de Ayuda (?)
     private View infoPortScanner, infoPing, infoDns, infoTraceroute, infoWhois, infoSsl;
@@ -49,6 +50,7 @@ public class ToolsFragment extends Fragment {
 
         btnPortScanner = view.findViewById(R.id.btnPortScanner);
         btnDnsLookup = view.findViewById(R.id.btnDnsLookup);
+        btnPing = view.findViewById(R.id.btnPing);
 
         infoPortScanner = view.findViewById(R.id.infoPortScanner);
         infoPing = view.findViewById(R.id.infoPing);
@@ -78,6 +80,7 @@ public class ToolsFragment extends Fragment {
         // ==========================================================
         if (btnPortScanner != null) btnPortScanner.setOnClickListener(v -> iniciarEscanerPuertos());
         if (btnDnsLookup != null) btnDnsLookup.setOnClickListener(v -> iniciarBusquedaDNS());
+        if (btnPing != null) btnPing.setOnClickListener(v -> iniciarBarridoPing()); // <- AGREGA ESTA LÍNEA
 
         // ==========================================================
         // EVENTOS DE CLICK - ALERTAS EDUCATIVAS (?)
@@ -227,6 +230,57 @@ public class ToolsFragment extends Fragment {
             }
 
             if (getActivity() != null) getActivity().runOnUiThread(() -> { btnDnsLookup.setEnabled(true); btnDnsLookup.setAlpha(1.0f); });
+        }).start();
+    }
+
+    // ==========================================================
+    // MOTOR ASÍNCRONO DE BARRIDO PING (NATIVO LINUX)
+    // ==========================================================
+    private void iniciarBarridoPing() {
+        String targetInput = etTarget.getText().toString().trim();
+        if (targetInput.isEmpty()) {
+            imprimirEnConsola("> [ERROR] Ingresa una IP o dominio válido.");
+            return;
+        }
+
+        // Apagamos la tarjeta mientras trabaja
+        btnPing.setEnabled(false);
+        btnPing.setAlpha(0.5f);
+        tvConsole.setText("> Iniciando envío de paquetes ICMP (Ping) a: " + targetInput + "\n> Por favor, espera...");
+
+        new Thread(() -> {
+            try {
+                // Ejecutamos el comando 'ping' de Linux con 4 paquetes (-c 4)
+                Process process = Runtime.getRuntime().exec("ping -c 4 " + targetInput);
+
+                // Leemos la salida de la terminal en tiempo real
+                java.io.BufferedReader reader = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(process.getInputStream()));
+
+                String linea;
+                while ((linea = reader.readLine()) != null) {
+                    imprimirEnConsola(linea);
+                }
+
+                // Esperamos a que el proceso termine para saber si fue exitoso
+                int exitCode = process.waitFor();
+                if (exitCode == 0) {
+                    imprimirEnConsola("> [✓] Barrido Ping finalizado. Objetivo ALCANZABLE.");
+                } else {
+                    imprimirEnConsola("> [!] El objetivo está inactivo o bloqueando paquetes ICMP (Firewall).");
+                }
+
+            } catch (Exception e) {
+                imprimirEnConsola("> [ERROR] Fallo crítico al ejecutar el comando nativo.");
+            }
+
+            // Reactivamos la tarjeta
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> {
+                    btnPing.setEnabled(true);
+                    btnPing.setAlpha(1.0f);
+                });
+            }
         }).start();
     }
 
