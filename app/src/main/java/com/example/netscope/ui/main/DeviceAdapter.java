@@ -34,14 +34,14 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceView
     public void onBindViewHolder(@NonNull DeviceViewHolder holder, int position) {
         Device device = deviceList.get(position);
 
-        holder.tvName.setText(device.getName());
-        holder.tvIp.setText(device.getIp());
-
+        String deviceName = device.getName() != null ? device.getName() : "Desconocido";
         String vendor = device.getVendor() != null ? device.getVendor() : "Genérico";
+
+        holder.tvName.setText(deviceName);
+        holder.tvIp.setText(device.getIp());
         holder.tvVendor.setText(vendor);
 
-        // LÓGICA DE ÍCONOS DINÁMICOS CONECTADOS A TUS XML
-        String nameLower = device.getName().toLowerCase();
+        String nameLower = deviceName.toLowerCase();
         String vendorLower = vendor.toLowerCase();
         String ip = device.getIp();
 
@@ -51,15 +51,19 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceView
             holder.ivIcon.setImageResource(R.drawable.ic_tv_neon);
         } else if (vendorLower.contains("windows") || nameLower.contains("pc")) {
             holder.ivIcon.setImageResource(R.drawable.ic_windows_neon);
-        } else if (vendorLower.contains("apple") || nameLower.contains("mac")) {
+        }
+        // ¡ESTA ES LA LÍNEA CORREGIDA PARA QUE NO CONFUNDA DIRECCIONES MAC CON APPLE!
+        else if (vendorLower.contains("apple") || nameLower.contains("macbook") || nameLower.contains("imac") || nameLower.contains("iphone") || nameLower.contains("ipad")) {
             holder.ivIcon.setImageResource(R.drawable.ic_apple_neon);
-        } else if (vendorLower.contains("linux") || vendorLower.contains("raspberry")) {
+        }
+        else if (vendorLower.contains("linux") || vendorLower.contains("raspberry")) {
             holder.ivIcon.setImageResource(R.drawable.ic_linux_neon);
         } else if (vendorLower.contains("impresora")) {
             holder.ivIcon.setImageResource(R.drawable.ic_printer_neon);
-        } else if (nameLower.contains("android") || vendorLower.contains("cubot")) {
+        } else if (nameLower.contains("android") || vendorLower.contains("cubot") || nameLower.contains("phone")) {
             holder.ivIcon.setImageResource(R.drawable.ic_android_neon);
         } else {
+            // El escudo táctico
             holder.ivIcon.setImageResource(R.drawable.ic_generic_neon);
         }
 
@@ -89,10 +93,8 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceView
         }
     }
 
-    // Metodo para actualizar la lista desde el filtro
     public void actualizarLista(List<Device> nuevaLista) {
         this.deviceList = nuevaLista;
         notifyDataSetChanged();
     }
-
 }
