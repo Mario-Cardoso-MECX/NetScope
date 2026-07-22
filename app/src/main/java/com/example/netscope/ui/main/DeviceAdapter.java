@@ -40,24 +40,27 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceView
         String vendor = device.getVendor() != null ? device.getVendor() : "Genérico";
         holder.tvVendor.setText(vendor);
 
-        // LÓGICA DE ÍCONOS DINÁMICOS
+        // LÓGICA DE ÍCONOS DINÁMICOS CONECTADOS A TUS XML
         String nameLower = device.getName().toLowerCase();
         String vendorLower = vendor.toLowerCase();
         String ip = device.getIp();
 
         if (ip.endsWith(".1") || ip.endsWith(".254") || vendorLower.contains("enrutador") || nameLower.contains("gateway")) {
-            holder.ivIcon.setImageResource(android.R.drawable.ic_dialog_dialer);
+            holder.ivIcon.setImageResource(R.drawable.ic_router_neon);
         } else if (nameLower.contains("tv") || vendorLower.contains("roku") || vendorLower.contains("cast") || vendorLower.contains("samsung")) {
-            holder.ivIcon.setImageResource(android.R.drawable.ic_menu_gallery);
-        } else if (vendorLower.contains("windows") || vendorLower.contains("linux") || vendorLower.contains("apple") || vendorLower.contains("mac")) {
-            // CORREGIDO: Usamos un icono de sistema universal que sí existe
-            holder.ivIcon.setImageResource(android.R.drawable.ic_menu_info_details);
+            holder.ivIcon.setImageResource(R.drawable.ic_tv_neon);
+        } else if (vendorLower.contains("windows") || nameLower.contains("pc")) {
+            holder.ivIcon.setImageResource(R.drawable.ic_windows_neon);
+        } else if (vendorLower.contains("apple") || nameLower.contains("mac")) {
+            holder.ivIcon.setImageResource(R.drawable.ic_apple_neon);
+        } else if (vendorLower.contains("linux") || vendorLower.contains("raspberry")) {
+            holder.ivIcon.setImageResource(R.drawable.ic_linux_neon);
         } else if (vendorLower.contains("impresora")) {
-            holder.ivIcon.setImageResource(android.R.drawable.ic_menu_agenda);
+            holder.ivIcon.setImageResource(R.drawable.ic_printer_neon);
         } else if (nameLower.contains("android") || vendorLower.contains("cubot")) {
-            holder.ivIcon.setImageResource(android.R.drawable.ic_menu_call);
+            holder.ivIcon.setImageResource(R.drawable.ic_android_neon);
         } else {
-            holder.ivIcon.setImageResource(android.R.drawable.ic_menu_mylocation);
+            holder.ivIcon.setImageResource(R.drawable.ic_generic_neon);
         }
 
         holder.itemView.setOnClickListener(v -> {

@@ -332,8 +332,9 @@ public class ToolsFragment extends Fragment {
                     boolean esIp = android.util.Patterns.IP_ADDRESS.matcher(target).matches();
                     String urlPath;
 
+                    // CORRECCIÓN MAGISTRAL: Apuntar directo al RIR maestro (ARIN) para evitar timeouts en IPs
                     if (esIp) {
-                        urlPath = "https://rdap.org/ip/" + target;
+                        urlPath = "https://rdap.arin.net/registry/ip/" + target;
                         imprimirEnConsola("> Consultando información para IPv4/IPv6...");
                     } else {
                         urlPath = obtenerServidorRDAP(target) + target;
@@ -364,7 +365,7 @@ public class ToolsFragment extends Fragment {
 
                     if (code != 200) {
                         imprimirEnConsola("\n> [ERROR] RDAP respondió HTTP " + code);
-                        imprimirEnConsola("> El objetivo puede existir pero el servidor RDAP no tiene información.");
+                        imprimirEnConsola("> El objetivo puede no estar asignado o restringido públicamente.");
                         return;
                     }
 
