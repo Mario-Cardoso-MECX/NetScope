@@ -17,22 +17,32 @@ import androidx.fragment.app.Fragment;
 import com.example.netscope.R;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.URL;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import javax.net.ssl.HttpsURLConnection;
 
 public class ToolsFragment extends Fragment {
+
+    // ==========================================================
+    // MEMORIA PERSISTENTE (Solución a la amnesia de Fragments)
+    // ==========================================================
+    private static StringBuilder historialConsola = new StringBuilder("> Consola en espera...\n> Ingresa un objetivo y selecciona una herramienta.\n> (Mantén presionado aquí para copiar el resultado)");
 
     // Variables de UI
     private EditText etTarget;
     private TextView tvConsole;
 
     // Tarjetas de Herramientas
-    private View btnPortScanner;
-    private View btnDnsLookup;
-    private View btnPing;
+    private View btnPortScanner, btnDnsLookup, btnPing, btnTraceroute, btnWhois, btnSsl;
 
     // Iconos de Ayuda (?)
     private View infoPortScanner, infoPing, infoDns, infoTraceroute, infoWhois, infoSsl;
@@ -51,6 +61,9 @@ public class ToolsFragment extends Fragment {
         btnPortScanner = view.findViewById(R.id.btnPortScanner);
         btnDnsLookup = view.findViewById(R.id.btnDnsLookup);
         btnPing = view.findViewById(R.id.btnPing);
+        btnTraceroute = view.findViewById(R.id.btnTraceroute);
+        btnWhois = view.findViewById(R.id.btnWhois);
+        btnSsl = view.findViewById(R.id.btnSsl);
 
         infoPortScanner = view.findViewById(R.id.infoPortScanner);
         infoPing = view.findViewById(R.id.infoPing);
@@ -60,12 +73,13 @@ public class ToolsFragment extends Fragment {
         infoSsl = view.findViewById(R.id.infoSsl);
 
         // ==========================================================
-        // UX DE CONSOLA: Scroll y Portapapeles (Copy-Paste Ninja)
+        // UX DE CONSOLA: Recuperar Memoria, Scroll y Portapapeles
         // ==========================================================
         if (tvConsole != null) {
-            tvConsole.setMovementMethod(new ScrollingMovementMethod());
+            // ¡MAGIA! Al regresar a la pestaña, recuperamos el texto exacto donde se quedó
+            tvConsole.setText(historialConsola.toString());
 
-            // Al mantener presionado, copia todo el texto
+            tvConsole.setMovementMethod(new ScrollingMovementMethod());
             tvConsole.setOnLongClickListener(v -> {
                 ClipboardManager clipboard = (ClipboardManager) getActivity().getSystemService(Context.CLIPBOARD_SERVICE);
                 ClipData clip = ClipData.newPlainText("Consola NetScope", tvConsole.getText().toString());
@@ -80,58 +94,51 @@ public class ToolsFragment extends Fragment {
         // ==========================================================
         if (btnPortScanner != null) btnPortScanner.setOnClickListener(v -> iniciarEscanerPuertos());
         if (btnDnsLookup != null) btnDnsLookup.setOnClickListener(v -> iniciarBusquedaDNS());
-        if (btnPing != null) btnPing.setOnClickListener(v -> iniciarBarridoPing()); // <- AGREGA ESTA LÍNEA
+        if (btnPing != null) btnPing.setOnClickListener(v -> iniciarBarridoPing());
+        if (btnTraceroute != null) btnTraceroute.setOnClickListener(v -> iniciarTraceroute());
+        if (btnWhois != null) btnWhois.setOnClickListener(v -> iniciarWhois());
+        if (btnSsl != null) btnSsl.setOnClickListener(v -> iniciarInspectorSSL());
 
         // ==========================================================
         // EVENTOS DE CLICK - ALERTAS EDUCATIVAS (?)
         // ==========================================================
-        if (infoPortScanner != null) infoPortScanner.setOnClickListener(v -> mostrarAlertaEducativa(
-                "Escáner de Puertos",
-                "Prueba miles de 'puertas virtuales' (puertos) en un servidor o dispositivo para ver cuáles están abiertas.\n\nÚtil para encontrar cámaras ocultas, bases de datos expuestas o servicios inseguros."));
-
-        if (infoPing != null) infoPing.setOnClickListener(v -> mostrarAlertaEducativa(
-                "Barrido Ping",
-                "Envía pequeños paquetes de datos (ecos) al objetivo para verificar si está 'vivo' y respondiendo en la red.\n\nEs como tocar la puerta para ver si hay alguien en casa."));
-
-        if (infoDns != null) infoDns.setOnClickListener(v -> mostrarAlertaEducativa(
-                "Búsqueda DNS",
-                "El DNS es el directorio telefónico de Internet.\n\n• Si ingresas un nombre (google.com), busca su IP real.\n• Si ingresas una IP, descubre el nombre escondido detrás."));
-
-        if (infoTraceroute != null) infoTraceroute.setOnClickListener(v -> mostrarAlertaEducativa(
-                "Traceroute",
-                "Mapea todo el camino que recorren tus datos por Internet. Te muestra cada 'salto' (router) por el que pasas antes de llegar al objetivo final."));
-
-        if (infoWhois != null) infoWhois.setOnClickListener(v -> mostrarAlertaEducativa(
-                "Whois",
-                "Consulta las bases de datos públicas de Internet para decirte quién es el dueño registrado de un dominio web o a qué proveedor pertenece una dirección IP."));
-
-        if (infoSsl != null) infoSsl.setOnClickListener(v -> mostrarAlertaEducativa(
-                "Inspector SSL",
-                "Extrae el certificado de seguridad de una página web (el candadito del navegador) para verificar si la conexión está cifrada, quién emitió el certificado y cuándo caduca."));
+        if (infoPortScanner != null) infoPortScanner.setOnClickListener(v -> mostrarAlertaEducativa("Escáner de Puertos", "Prueba miles de 'puertas virtuales' (puertos) en un servidor o dispositivo para ver cuáles están abiertas.\n\nÚtil para encontrar cámaras ocultas, bases de datos expuestas o servicios inseguros."));
+        if (infoPing != null) infoPing.setOnClickListener(v -> mostrarAlertaEducativa("Barrido Ping", "Envía pequeños paquetes de datos (ecos) al objetivo para verificar si está 'vivo' y respondiendo en la red.\n\nEs como tocar la puerta para ver si hay alguien en casa."));
+        if (infoDns != null) infoDns.setOnClickListener(v -> mostrarAlertaEducativa("Búsqueda DNS", "El DNS es el directorio telefónico de Internet.\n\n• Si ingresas un nombre (google.com), busca su IP real.\n• Si ingresas una IP, descubre el nombre escondido detrás."));
+        if (infoTraceroute != null) infoTraceroute.setOnClickListener(v -> mostrarAlertaEducativa("Traceroute", "Mapea todo el camino que recorren tus datos por Internet. Te muestra cada 'salto' (router) por el que pasas antes de llegar al objetivo final."));
+        if (infoWhois != null) infoWhois.setOnClickListener(v -> mostrarAlertaEducativa("Whois", "Consulta las bases de datos públicas de Internet para decirte quién es el dueño registrado de un dominio web o a qué proveedor pertenece una dirección IP."));
+        if (infoSsl != null) infoSsl.setOnClickListener(v -> mostrarAlertaEducativa("Inspector SSL", "Extrae el certificado de seguridad de una página web (el candadito del navegador) para verificar si la conexión está cifrada, quién emitió el certificado y cuándo caduca."));
 
         return view;
     }
 
-    // ==========================================================
-    // CREADOR DE ALERTAS EDUCATIVAS (UX PLAY STORE)
-    // ==========================================================
     private void mostrarAlertaEducativa(String titulo, String mensaje) {
         if (getContext() != null) {
-            new MaterialAlertDialogBuilder(getContext())
-                    .setTitle("🔍 " + titulo)
-                    .setMessage(mensaje)
-                    .setPositiveButton("Entendido", (dialog, which) -> dialog.dismiss())
-                    .show();
+            new MaterialAlertDialogBuilder(getContext()).setTitle("🔍 " + titulo).setMessage(mensaje).setPositiveButton("Entendido", (dialog, which) -> dialog.dismiss()).show();
         }
     }
 
     // ==========================================================
-    // MÉTODO PARA INYECTAR TEXTO A LA CONSOLA EN TIEMPO REAL
+    // MÉTODOS DE ESCRITURA EN CONSOLA PERSISTENTE
     // ==========================================================
+    private void limpiarConsola(String textoInicial) {
+        // Borramos la memoria anterior e iniciamos una nueva tarea
+        historialConsola.setLength(0);
+        historialConsola.append(textoInicial);
+
+        if (getActivity() != null && tvConsole != null) {
+            getActivity().runOnUiThread(() -> tvConsole.setText(historialConsola.toString()));
+        }
+    }
+
     private void imprimirEnConsola(String texto) {
-        if (getActivity() != null) {
+        // Guardamos en la memoria ESTÉ O NO ESTÉ la pantalla abierta
+        historialConsola.append("\n").append(texto);
+
+        // Si la pantalla está abierta, actualizamos visualmente
+        if (getActivity() != null && tvConsole != null) {
             getActivity().runOnUiThread(() -> {
-                tvConsole.append("\n" + texto);
+                tvConsole.setText(historialConsola.toString());
                 int scrollAmount = tvConsole.getLayout().getLineTop(tvConsole.getLineCount()) - tvConsole.getHeight();
                 if (scrollAmount > 0) tvConsole.scrollTo(0, scrollAmount);
                 else tvConsole.scrollTo(0, 0);
@@ -139,34 +146,39 @@ public class ToolsFragment extends Fragment {
         }
     }
 
+    private void cambiarEstadoBoton(View boton, boolean habilitar) {
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                boton.setEnabled(habilitar);
+                boton.setAlpha(habilitar ? 1.0f : 0.5f);
+            });
+        }
+    }
+
     // ==========================================================
-    // MOTOR ASÍNCRONO DEL ESCÁNER DE PUERTOS
+    // 1. ESCÁNER DE PUERTOS
     // ==========================================================
     private void iniciarEscanerPuertos() {
         String targetInput = etTarget.getText().toString().trim();
-        if (targetInput.isEmpty()) { imprimirEnConsola("> [ERROR] Ingresa una IP o dominio válido."); return; }
+        if (targetInput.isEmpty()) { imprimirEnConsola("> [ERROR] Ingresa un objetivo válido."); return; }
 
-        btnPortScanner.setEnabled(false);
-        btnPortScanner.setAlpha(0.5f);
-        tvConsole.setText("> Inicializando Motor NetScope Nmap-lite...");
-        imprimirEnConsola("> Objetivo fijado: " + targetInput);
+        cambiarEstadoBoton(btnPortScanner, false);
+        limpiarConsola("> Inicializando Escáner de Puertos...\n> Objetivo: " + targetInput);
 
         new Thread(() -> {
             String targetIp = targetInput;
             try {
-                imprimirEnConsola("> Resolviendo objetivo...");
                 java.net.InetAddress[] direcciones = java.net.InetAddress.getAllByName(targetInput);
-                for (java.net.InetAddress direccion : direcciones) {
-                    if (direccion instanceof java.net.Inet4Address) { targetIp = direccion.getHostAddress(); break; }
+                for (java.net.InetAddress dir : direcciones) {
+                    if (dir instanceof java.net.Inet4Address) { targetIp = dir.getHostAddress(); break; }
                 }
-                if (!targetInput.equals(targetIp)) imprimirEnConsola("> IP Resuelta (IPv4): " + targetIp);
             } catch (Exception e) {
-                imprimirEnConsola("> [ERROR] No se pudo resolver el dominio.");
-                if (getActivity() != null) getActivity().runOnUiThread(() -> { btnPortScanner.setEnabled(true); btnPortScanner.setAlpha(1.0f); });
+                imprimirEnConsola("> [ERROR] Dominio inválido.");
+                cambiarEstadoBoton(btnPortScanner, true);
                 return;
             }
 
-            imprimirEnConsola("> Lanzando 50 hilos de auditoría TCP...");
+            imprimirEnConsola("> Lanzando hilos TCP...");
             String finalTarget = targetIp;
             ExecutorService executor = Executors.newFixedThreadPool(50);
 
@@ -193,23 +205,22 @@ public class ToolsFragment extends Fragment {
             executor.shutdown();
             try {
                 executor.awaitTermination(45, TimeUnit.SECONDS);
-                imprimirEnConsola("> [✓] Escaneo completado con éxito.");
-            } catch (InterruptedException e) { imprimirEnConsola("> [!] Escaneo abortado por el sistema."); }
+                imprimirEnConsola("> [✓] Escaneo completado.");
+            } catch (InterruptedException e) { imprimirEnConsola("> [!] Abortado."); }
 
-            if (getActivity() != null) getActivity().runOnUiThread(() -> { btnPortScanner.setEnabled(true); btnPortScanner.setAlpha(1.0f); });
+            cambiarEstadoBoton(btnPortScanner, true);
         }).start();
     }
 
     // ==========================================================
-    // MOTOR ASÍNCRONO DE BÚSQUEDA DNS
+    // 2. BÚSQUEDA DNS
     // ==========================================================
     private void iniciarBusquedaDNS() {
         String target = etTarget.getText().toString().trim();
-        if (target.isEmpty()) { imprimirEnConsola("> [ERROR] Ingresa una IP o dominio válido."); return; }
+        if (target.isEmpty()) { imprimirEnConsola("> [ERROR] Ingresa un objetivo válido."); return; }
 
-        btnDnsLookup.setEnabled(false);
-        btnDnsLookup.setAlpha(0.5f);
-        tvConsole.setText("> Iniciando interrogatorio DNS para: " + target);
+        cambiarEstadoBoton(btnDnsLookup, false);
+        limpiarConsola("> Interrogatorio DNS para: " + target);
 
         new Thread(() -> {
             try {
@@ -224,63 +235,172 @@ public class ToolsFragment extends Fragment {
                 if (!hostname.equals(main.getHostAddress()) && !hostname.equals(target)) {
                     imprimirEnConsola("> Hostname Inverso: " + hostname);
                 }
-                imprimirEnConsola("> [✓] Interrogatorio DNS completado.");
-            } catch (Exception e) {
-                imprimirEnConsola("> [ERROR] No se encontraron registros DNS. Verifica el objetivo.");
-            }
+                imprimirEnConsola("> [✓] Completado.");
+            } catch (Exception e) { imprimirEnConsola("> [ERROR] Sin registros DNS."); }
 
-            if (getActivity() != null) getActivity().runOnUiThread(() -> { btnDnsLookup.setEnabled(true); btnDnsLookup.setAlpha(1.0f); });
+            cambiarEstadoBoton(btnDnsLookup, true);
         }).start();
     }
 
     // ==========================================================
-    // MOTOR ASÍNCRONO DE BARRIDO PING (NATIVO LINUX)
+    // 3. BARRIDO PING
     // ==========================================================
     private void iniciarBarridoPing() {
-        String targetInput = etTarget.getText().toString().trim();
-        if (targetInput.isEmpty()) {
-            imprimirEnConsola("> [ERROR] Ingresa una IP o dominio válido.");
-            return;
-        }
+        String target = etTarget.getText().toString().trim();
+        if (target.isEmpty()) { imprimirEnConsola("> [ERROR] Ingresa un objetivo válido."); return; }
 
-        // Apagamos la tarjeta mientras trabaja
-        btnPing.setEnabled(false);
-        btnPing.setAlpha(0.5f);
-        tvConsole.setText("> Iniciando envío de paquetes ICMP (Ping) a: " + targetInput + "\n> Por favor, espera...");
+        cambiarEstadoBoton(btnPing, false);
+        limpiarConsola("> Pinging a: " + target + "...");
 
         new Thread(() -> {
             try {
-                // Ejecutamos el comando 'ping' de Linux con 4 paquetes (-c 4)
-                Process process = Runtime.getRuntime().exec("ping -c 4 " + targetInput);
-
-                // Leemos la salida de la terminal en tiempo real
-                java.io.BufferedReader reader = new java.io.BufferedReader(
-                        new java.io.InputStreamReader(process.getInputStream()));
-
+                Process process = Runtime.getRuntime().exec("ping -c 4 " + target);
+                BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                 String linea;
-                while ((linea = reader.readLine()) != null) {
-                    imprimirEnConsola(linea);
-                }
+                while ((linea = reader.readLine()) != null) imprimirEnConsola(linea);
 
-                // Esperamos a que el proceso termine para saber si fue exitoso
                 int exitCode = process.waitFor();
-                if (exitCode == 0) {
-                    imprimirEnConsola("> [✓] Barrido Ping finalizado. Objetivo ALCANZABLE.");
-                } else {
-                    imprimirEnConsola("> [!] El objetivo está inactivo o bloqueando paquetes ICMP (Firewall).");
+                if (exitCode == 0) imprimirEnConsola("> [✓] Objetivo ALCANZABLE.");
+                else imprimirEnConsola("> [!] Objetivo inactivo o filtrado.");
+            } catch (Exception e) { imprimirEnConsola("> [ERROR] Fallo al ejecutar Ping."); }
+            cambiarEstadoBoton(btnPing, true);
+        }).start();
+    }
+
+    // ==========================================================
+    // 4. TRACEROUTE SIMULADO
+    // ==========================================================
+    private void iniciarTraceroute() {
+        String target = etTarget.getText().toString().trim();
+        if (target.isEmpty()) { imprimirEnConsola("> [ERROR] Ingresa un objetivo válido."); return; }
+
+        cambiarEstadoBoton(btnTraceroute, false);
+        limpiarConsola("> Trazando ruta hacia: " + target + " (Máx 15 saltos)");
+
+        new Thread(() -> {
+            try {
+                for (int ttl = 1; ttl <= 15; ttl++) {
+                    Process process = Runtime.getRuntime().exec("ping -c 1 -t " + ttl + " -W 1 " + target);
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                    String linea;
+                    boolean respondio = false;
+
+                    while ((linea = reader.readLine()) != null) {
+                        if (linea.contains("Time to live exceeded") || linea.contains("exceeded")) {
+                            imprimirEnConsola("> Salto " + ttl + " detectado: Router intermedio");
+                            respondio = true;
+                            break;
+                        } else if (linea.contains("64 bytes from")) {
+                            imprimirEnConsola("> Salto " + ttl + ": [✓] DESTINO ALCANZADO (" + target + ")");
+                            respondio = true;
+                            break;
+                        }
+                    }
+                    if (!respondio) imprimirEnConsola("> Salto " + ttl + ": * * * (Tiempo agotado)");
+
+                    if (process.waitFor() == 0) break;
                 }
+                imprimirEnConsola("> [✓] Traceroute finalizado.");
+            } catch (Exception e) { imprimirEnConsola("> [ERROR] Fallo en Traceroute."); }
+            cambiarEstadoBoton(btnTraceroute, true);
+        }).start();
+    }
+
+    // ==========================================================
+    // 5. WHOIS (Web Scraper OSINT - Bypass Definitivo por HTTPS)
+    // ==========================================================
+    private void iniciarWhois() {
+        String target = etTarget.getText().toString().trim();
+        if (target.isEmpty()) { imprimirEnConsola("> [ERROR] Ingresa un dominio válido."); return; }
+
+        cambiarEstadoBoton(btnWhois, false);
+        limpiarConsola("> Iniciando Web Scraping en IANA WHOIS para: " + target + "...\n> (Bypass de Firewall por Puerto 443)");
+
+        new Thread(() -> {
+            try {
+                // Hacemos una petición web idéntica a la de un navegador moderno
+                URL url = new URL("https://www.iana.org/whois?q=" + target);
+                HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
+                conn.setConnectTimeout(8000);
+                conn.setReadTimeout(8000);
+                conn.setRequestMethod("GET");
+                // Camuflaje: Le decimos al servidor que somos un navegador Chrome, no un script
+                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+
+                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                String linea;
+                boolean capturando = false;
+                boolean encontroAlgo = false;
+
+                while ((linea = in.readLine()) != null) {
+                    // IANA guarda el resultado puro dentro de una etiqueta HTML <pre>
+                    if (linea.contains("<pre id=\"whois-text\">") || linea.contains("<pre>")) {
+                        capturando = true;
+                        continue; // Saltamos la línea de la etiqueta HTML
+                    }
+                    if (linea.contains("</pre>")) {
+                        capturando = false;
+                        break; // Terminamos de leer el bloque de texto
+                    }
+
+                    if (capturando) {
+                        // Limpiamos los caracteres especiales HTML por seguridad
+                        String textoLimpio = linea.replace("&quot;", "\"").replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
+                        imprimirEnConsola(textoLimpio);
+                        encontroAlgo = true;
+                    }
+                }
+                in.close();
+
+                if (!encontroAlgo) imprimirEnConsola("> [!] No se encontró información en la base de datos central de IANA.");
+                imprimirEnConsola("> [✓] Web Scraping WHOIS finalizado.");
 
             } catch (Exception e) {
-                imprimirEnConsola("> [ERROR] Fallo crítico al ejecutar el comando nativo.");
+                imprimirEnConsola("> [ERROR] Fallo en la conexión HTTPS. Verifica tu internet.");
+            } finally {
+                cambiarEstadoBoton(btnWhois, true);
             }
+        }).start();
+    }
 
-            // Reactivamos la tarjeta
-            if (getActivity() != null) {
-                getActivity().runOnUiThread(() -> {
-                    btnPing.setEnabled(true);
-                    btnPing.setAlpha(1.0f);
-                });
+    // ==========================================================
+    // 6. INSPECTOR SSL
+    // ==========================================================
+    private void iniciarInspectorSSL() {
+        String target = etTarget.getText().toString().trim();
+        if (target.isEmpty()) { imprimirEnConsola("> [ERROR] Ingresa un dominio (ej. google.com)."); return; }
+
+        cambiarEstadoBoton(btnSsl, false);
+        limpiarConsola("> Iniciando Handshake TLS con: " + target + "...\n> Extrayendo certificado de seguridad...");
+
+        new Thread(() -> {
+            try {
+                URL url = new URL("https://" + target);
+                HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
+                conn.setConnectTimeout(5000);
+                conn.connect();
+
+                Certificate[] certs = conn.getServerCertificates();
+                if (certs.length > 0 && certs[0] instanceof X509Certificate) {
+                    X509Certificate x509 = (X509Certificate) certs[0];
+
+                    imprimirEnConsola("==================================");
+                    imprimirEnConsola("🔒 CERTIFICADO DE SEGURIDAD");
+                    imprimirEnConsola("==================================");
+                    imprimirEnConsola("> Sujeto (Dueño): " + x509.getSubjectDN().getName());
+                    imprimirEnConsola("> Emisor (Autoridad): " + x509.getIssuerDN().getName());
+                    imprimirEnConsola("> Válido desde: " + x509.getNotBefore().toString());
+                    imprimirEnConsola("> Válido hasta: " + x509.getNotAfter().toString());
+                    imprimirEnConsola("> Algoritmo de Firma: " + x509.getSigAlgName());
+                    imprimirEnConsola("> Versión: V" + x509.getVersion());
+                    imprimirEnConsola("==================================");
+                }
+                conn.disconnect();
+                imprimirEnConsola("> [✓] Inspección SSL finalizada.");
+            } catch (Exception e) {
+                imprimirEnConsola("> [ERROR] No se pudo obtener el certificado. Verifica que la página soporte HTTPS.");
             }
+            cambiarEstadoBoton(btnSsl, true);
         }).start();
     }
 
