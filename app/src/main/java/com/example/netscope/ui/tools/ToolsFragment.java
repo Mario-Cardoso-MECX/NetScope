@@ -274,7 +274,7 @@ public class ToolsFragment extends Fragment {
         String target = etTarget.getText().toString().trim();
 
         if (target.isEmpty()) {
-            imprimirEnConsola("> [ERROR] Ingresa un dominio válido.");
+            imprimirEnConsola("> [ERROR] Ingresa un dominio o IP válido.");
             return;
         }
 
@@ -283,9 +283,17 @@ public class ToolsFragment extends Fragment {
 
         new Thread(() -> {
             try {
-                // =====================================================
-                // DOMINIOS .MX -> CLÁSICO TCP PUERTO 43
-                // =====================================================
+                boolean esIp = android.util.Patterns.IP_ADDRESS.matcher(target).matches();
+
+                // 🛡️ ESCUDO: Evitar que consulte IPs Locales (192.168.x.x, 10.x.x.x, etc.)
+                if (esIp && (target.startsWith("192.168.") || target.startsWith("10.") || target.startsWith("127.") || target.startsWith("172.16."))) {
+                    imprimirEnConsola("> [INFO] IP Local / Privada detectada.");
+                    imprimirEnConsola("> Las IPs locales no tienen registros públicos en Internet.");
+                    imprimirEnConsola("> [✓] Consulta abortada intencionalmente.");
+                    cambiarEstadoBoton(btnWhois, true);
+                    return;
+                }
+
                 if (target.toLowerCase().endsWith(".mx")) {
                     imprimirEnConsola("> Dominio .MX detectado");
                     imprimirEnConsola("> Conectando a whois.mx:43...");
@@ -305,7 +313,6 @@ public class ToolsFragment extends Fragment {
                             boolean recibioDatos = false;
 
                             for (String linea : lineas) {
-                                // Limpiamos comentarios para no ensuciar la consola
                                 if (!linea.trim().isEmpty() && !linea.startsWith("%") && !linea.startsWith("#") && !linea.startsWith(">>>")) {
                                     imprimirEnConsola(linea.trim());
                                     recibioDatos = true;
@@ -322,20 +329,13 @@ public class ToolsFragment extends Fragment {
                         imprimirEnConsola("> [INFO] Posible bloqueo del Puerto 43 TCP por tu red.");
                     }
                 }
-                // =====================================================
-                // RESTO DE DOMINIOS O IPs -> RDAP DIRECTO
-                // =====================================================
                 else {
                     imprimirEnConsola("> Detectando protocolo RDAP...");
-
-                    // Identificamos si el texto ingresado es una IP o un Dominio
-                    boolean esIp = android.util.Patterns.IP_ADDRESS.matcher(target).matches();
                     String urlPath;
 
-                    // CORRECCIÓN MAGISTRAL: Apuntar directo al RIR maestro (ARIN) para evitar timeouts en IPs
                     if (esIp) {
                         urlPath = "https://rdap.arin.net/registry/ip/" + target;
-                        imprimirEnConsola("> Consultando información para IPv4/IPv6...");
+                        imprimirEnConsola("> Consultando registros para IP pública...");
                     } else {
                         urlPath = obtenerServidorRDAP(target) + target;
                         imprimirEnConsola("> Consultando servidor RDAP del TLD...");
@@ -343,29 +343,31 @@ public class ToolsFragment extends Fragment {
 
                     URL url = new URL(urlPath);
                     HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
-
-                    conn.setInstanceFollowRedirects(false); // Para cazar los saltos a Verisign
+                    conn.setInstanceFollowRedirects(false);
                     conn.setConnectTimeout(25000);
                     conn.setReadTimeout(25000);
                     conn.setRequestProperty("Accept", "application/json");
                     conn.setRequestProperty("User-Agent", "Mozilla/5.0");
 
                     int code = conn.getResponseCode();
+                    int redirectCount = 0;
 
-                    // Perseguir redirecciones
-                    if (code == 301 || code == 302 || code == 307 || code == 308) {
+                    // 🛠️ PARCHE ANTI-TIMEOUT: Perseguir redirecciones hasta 3 veces (INCLUYE CÓDIGO 303 PARA IPs)
+                    while ((code == 301 || code == 302 || code == 303 || code == 307 || code == 308) && redirectCount < 3) {
                         String newUrl = conn.getHeaderField("Location");
+                        imprimirEnConsola("> Redirigiendo a: " + newUrl);
                         conn = (HttpsURLConnection) new URL(newUrl).openConnection();
                         conn.setConnectTimeout(25000);
                         conn.setReadTimeout(25000);
                         conn.setRequestProperty("Accept", "application/json");
                         conn.setRequestProperty("User-Agent", "Mozilla/5.0");
                         code = conn.getResponseCode();
+                        redirectCount++;
                     }
 
                     if (code != 200) {
                         imprimirEnConsola("\n> [ERROR] RDAP respondió HTTP " + code);
-                        imprimirEnConsola("> El objetivo puede no estar asignado o restringido públicamente.");
+                        imprimirEnConsola("> El objetivo puede no estar asignado o su registro es privado.");
                         return;
                     }
 
@@ -382,7 +384,6 @@ public class ToolsFragment extends Fragment {
                     try {
                         org.json.JSONObject rdapJson = new org.json.JSONObject(jsonResponse.toString());
 
-                        // Para dominios muestra ldhName, para IPs muestra handle/name
                         String nombre = rdapJson.optString("ldhName", rdapJson.optString("name", "N/D"));
                         imprimirEnConsola("Objetivo: " + nombre);
 
