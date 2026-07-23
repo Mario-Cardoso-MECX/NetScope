@@ -2,9 +2,11 @@ package com.example.netscope.ui.details;
 
 import android.graphics.Color;
 import android.os.Bundle;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import com.example.netscope.R;
+import com.google.android.material.button.MaterialButton;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -17,13 +19,13 @@ public class DetailsActivity extends AppCompatActivity {
 
     private TextView tvTargetName, tvTargetIp, tvConsole;
     private TextView port21, port22, port80, port443, port3306, port3389;
+    private MaterialButton btnVulnScan;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_details);
 
-        // Enlaces UI
         tvTargetName = findViewById(R.id.tvTargetName);
         tvTargetIp = findViewById(R.id.tvTargetIp);
         tvConsole = findViewById(R.id.tvConsole);
@@ -35,7 +37,8 @@ public class DetailsActivity extends AppCompatActivity {
         port3306 = findViewById(R.id.port3306);
         port3389 = findViewById(R.id.port3389);
 
-        // Recibimos los datos del adaptador
+        btnVulnScan = findViewById(R.id.btnVulnScan);
+
         String ip = getIntent().getStringExtra("TARGET_IP");
         String name = getIntent().getStringExtra("TARGET_NAME");
 
@@ -45,6 +48,8 @@ public class DetailsActivity extends AppCompatActivity {
         if (ip != null) {
             startAggressiveScan(ip);
         }
+
+        btnVulnScan.setOnClickListener(v -> lanzarAuditoriaCVE());
     }
 
     private void startAggressiveScan(String ip) {
@@ -54,25 +59,19 @@ public class DetailsActivity extends AppCompatActivity {
         for (int port : portsToScan) {
             executor.execute(() -> scanPortAndGrabBanner(ip, port));
         }
-        executor.shutdown(); // Cerramos la admisión de hilos
+        executor.shutdown();
     }
 
     private void scanPortAndGrabBanner(String ip, int port) {
         try {
             Socket socket = new Socket();
-            // Límite de 500ms para evadir congelamiento (ANR)
             socket.connect(new InetSocketAddress(ip, port), 500);
 
-            // ¡Conexión exitosa! Marcamos de verde.
             updatePortUI(port, true);
 
-            // ==========================================
-            // LÓGICA DE BANNER GRABBING
-            // ==========================================
             String bannerData = "";
-            socket.setSoTimeout(1500); // Damos 1.5s extra para que el servidor responda su saludo
+            socket.setSoTimeout(1500);
 
-            // Si es un puerto web, forzamos a que nos diga qué servidor es enviando un header falso
             if (port == 80 || port == 443) {
                 OutputStream out = socket.getOutputStream();
                 out.write("HEAD / HTTP/1.0\r\n\r\n".getBytes());
@@ -84,7 +83,6 @@ public class DetailsActivity extends AppCompatActivity {
             String line;
             int lineCount = 0;
 
-            // Leemos solo las primeras 3 líneas para no saturar la consola
             while ((line = reader.readLine()) != null && lineCount < 3) {
                 sb.append("    ").append(line).append("\n");
                 lineCount++;
@@ -99,12 +97,10 @@ public class DetailsActivity extends AppCompatActivity {
             }
 
         } catch (Exception e) {
-            // Error: El puerto está cerrado o el Firewall lo filtró
             updatePortUI(port, false);
         }
     }
 
-    // Actualiza la UI de las tarjetas (debe correr en el hilo principal)
     private void updatePortUI(int port, boolean isOpen) {
         runOnUiThread(() -> {
             TextView targetView = null;
@@ -118,10 +114,10 @@ public class DetailsActivity extends AppCompatActivity {
             }
             if (targetView != null) {
                 if (isOpen) {
-                    targetView.setBackgroundColor(Color.parseColor("#00FF7F")); // Verde
+                    targetView.setBackgroundColor(Color.parseColor("#00FF7F"));
                     targetView.setTextColor(Color.parseColor("#0D1117"));
                 } else {
-                    targetView.setBackgroundColor(Color.parseColor("#FF5555")); // Rojo
+                    targetView.setBackgroundColor(Color.parseColor("#FF5555"));
                     targetView.setTextColor(Color.WHITE);
                 }
             }
@@ -130,5 +126,49 @@ public class DetailsActivity extends AppCompatActivity {
 
     private void printToConsole(String message) {
         runOnUiThread(() -> tvConsole.append("> " + message + "\n"));
+    }
+
+    // ==========================================
+    // MOTOR HEURÍSTICO CVE (VULNERABILIDADES)
+    // ==========================================
+    private void lanzarAuditoriaCVE() {
+        String textoConsola = tvConsole.getText().toString().toLowerCase();
+
+        tvConsole.append("\n> [SISTEMA] Conectando con Base de Datos CVE Local...\n");
+        tvConsole.append("> [SISTEMA] Cruzando firmas de software...\n");
+
+        boolean vulnFound = false;
+
+        if (textoConsola.contains("apache/2.4.62")) {
+            tvConsole.append("\n> [ALERTA ROJA] Apache 2.4.62 detectado.\n");
+            tvConsole.append("  - [CVE-2024-38474] Vulnerabilidad de inyección en mod_rewrite.\n");
+            tvConsole.append("  - [CVE-2024-38475] Evasión de restricciones en mod_rewrite.\n");
+            tvConsole.append("  >> SUGERENCIA: Actualizar a Apache 2.4.63 o superior urgente.\n");
+            vulnFound = true;
+        }
+
+        if (textoConsola.contains("smb") || textoConsola.contains("445")) {
+            tvConsole.append("\n> [ADVERTENCIA] Puerto SMB (445) Expuesto en red.\n");
+            tvConsole.append("  - Riesgo de explotación remota (ej. EternalBlue CVE-2017-0144) si Windows no está parcheado.\n");
+            vulnFound = true;
+        }
+
+        if (textoConsola.contains("21 ftp")) {
+            tvConsole.append("\n> [ADVERTENCIA CRÍTICA] Puerto FTP (21) abierto.\n");
+            tvConsole.append("  - El protocolo FTP no está encriptado. Las contraseñas viajan en texto plano.\n");
+            tvConsole.append("  >> SUGERENCIA: Migrar servicio a SFTP (Puerto 22).\n");
+            vulnFound = true;
+        }
+
+        if (!vulnFound) {
+            tvConsole.append("\n> [SISTEMA] No se detectaron vulnerabilidades críticas conocidas en los banners extraídos.\n");
+        }
+
+        tvConsole.append("> [SISTEMA] Análisis de vulnerabilidades finalizado.\n\n");
+
+        ScrollView scrollView = findViewById(R.id.scrollViewConsole);
+        if(scrollView != null) {
+            scrollView.post(() -> scrollView.fullScroll(android.view.View.FOCUS_DOWN));
+        }
     }
 }

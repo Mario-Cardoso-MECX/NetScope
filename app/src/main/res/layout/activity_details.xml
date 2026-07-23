@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -53,7 +54,7 @@
         android:columnCount="3"
         android:rowCount="2"
         android:alignmentMode="alignBounds"
-        android:layout_marginBottom="24dp">
+        android:layout_marginBottom="16dp">
 
         <TextView android:id="@+id/port21" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="4dp" android:background="@color/card_background" android:text="21 FTP" android:textColor="@color/text_secondary" android:textAlignment="center" android:padding="12dp" android:textStyle="bold"/>
         <TextView android:id="@+id/port22" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="4dp" android:background="@color/card_background" android:text="22 SSH" android:textColor="@color/text_secondary" android:textAlignment="center" android:padding="12dp" android:textStyle="bold"/>
@@ -63,6 +64,18 @@
         <TextView android:id="@+id/port3389" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="4dp" android:background="@color/card_background" android:text="3389 RDP" android:textColor="@color/text_secondary" android:textAlignment="center" android:padding="12dp" android:textStyle="bold"/>
 
     </GridLayout>
+
+    <!-- Botón de Análisis CVE -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnVulnScan"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:layout_marginBottom="16dp"
+        android:text="ANÁLISIS DE VULNERABILIDADES (CVE)"
+        android:backgroundTint="#D32F2F"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        app:cornerRadius="8dp" />
 
     <!-- Título Consola -->
     <TextView
@@ -76,6 +89,7 @@
 
     <!-- Consola de Resultados -->
     <ScrollView
+        android:id="@+id/scrollViewConsole"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@color/card_background"

@@ -34,8 +34,29 @@ public class PingSweepEngine {
         for (String targetIp : ipsToScan) {
             executor.execute(() -> {
                 if (isHostAlive(targetIp)) {
+
+                    // ==========================================================
+                    // TÁCTICA DE RESOLUCIÓN DNS INVERSA (El truco de los nombres)
+                    // ==========================================================
+                    String deviceName = "Dispositivo Detectado";
+                    try {
+                        InetAddress inet = InetAddress.getByName(targetIp);
+                        String hostName = inet.getHostName(); // Le preguntamos el nombre al Router
+
+                        // Si el router nos devuelve un nombre real (diferente a la pura IP)
+                        if (!hostName.equals(targetIp)) {
+                            // Limpiamos la basura que le meten los módems por defecto
+                            deviceName = hostName.replace(".domain.name.", "")
+                                    .replace(".domain.name", "")
+                                    .replace(".local", "")
+                                    .replace(".lan", "");
+                        }
+                    } catch (Exception e) {
+                        // Si falla, se queda como "Dispositivo Detectado"
+                    }
+
                     synchronized (activeIps) { activeIps.add(targetIp); }
-                    if (listener != null) listener.onDeviceFound(targetIp, "Dispositivo Detectado");
+                    if (listener != null) listener.onDeviceFound(targetIp, deviceName);
                 }
             });
         }
