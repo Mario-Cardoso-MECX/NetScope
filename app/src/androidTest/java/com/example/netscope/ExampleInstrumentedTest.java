@@ -1,4 +1,4 @@
-package com.example.netscope;
+package com.mecx.netscope;
 
 import android.content.Context;
 
