@@ -4,7 +4,10 @@ import android.util.Log;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.InputStreamReader;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URL;
@@ -46,9 +49,6 @@ public class PingSweepEngine {
                 // ==========================================================
                 // TRUCO TÁCTICO: TIEMPO DE GRACIA mDNS (5 Segundos)
                 // ==========================================================
-                // Mantenemos el hilo "congelado" pero la UI sigue viva.
-                // Esto le da a los dispositivos IoT (Refris, Roku, TVs)
-                // el tiempo exacto que necesitan para responder con su nombre.
                 Log.d(TAG, "Pings terminados. Esperando nombres de red...");
                 Thread.sleep(5000);
 
@@ -74,6 +74,7 @@ public class PingSweepEngine {
     }
 
     public static String resolveDeviceIdentity(String ip) {
+        // 1. Intentamos leer la tabla ARP (Solo funcionará en Android 9 hacia abajo o equipos con Root)
         String mac = extractMacFromArp(ip);
         if (mac != null) {
             String vendor = queryMacVendorApi(mac);
@@ -81,6 +82,7 @@ public class PingSweepEngine {
                 return vendor;
             }
         }
+        // 2. Si falla la MAC, desplegamos nuestro Fingerprinting Heurístico
         return guessBrandByPorts(ip);
     }
 
@@ -132,12 +134,12 @@ public class PingSweepEngine {
         return "Genérico";
     }
 
-    // FINGERPRINTING HEURÍSTICO (Modo Sigiloso + Arsenal Completo en Reserva)
+    // ======================================================================
+    // FINGERPRINTING HEURÍSTICO (Banner Grabbing + SSDP + Puertos)
+    // ======================================================================
     private static String guessBrandByPorts(String ip) {
 
-        // ======================================================================
-        // LOS 10 PUERTOS DE ORO (Activos en Modo Sigiloso)
-        // ======================================================================
+        // 1. LOS 10 PUERTOS DE ORO (Firma por defecto)
         if (isPortOpen(ip, 7676) || isPortOpen(ip, 8001)) return "Samsung Smart Device";
         if (isPortOpen(ip, 8060)) return "Roku Streaming Device";
         if (isPortOpen(ip, 8009) || isPortOpen(ip, 8008)) return "Google Cast / Smart TV";
@@ -146,8 +148,33 @@ public class PingSweepEngine {
         if (isPortOpen(ip, 5555)) return "Android Device (ADB) / FireTV";
         if (isPortOpen(ip, 22)) return "Servidor Linux / Raspberry Pi (SSH)";
         if (isPortOpen(ip, 9100) || isPortOpen(ip, 631)) return "Impresora de Red";
-        if (isPortOpen(ip, 1900)) return "Dispositivo IoT (UPnP)";
-        if (isPortOpen(ip, 80) || isPortOpen(ip, 443)) return "Panel Web / Enrutador Local";
+
+        // 2. EXTRACCIÓN SSDP (Para dispositivos IoT y Pantallas que gritan en UDP 1900)
+        String ssdpBanner = getSsdpBanner(ip);
+        if (ssdpBanner != null) {
+            String sLower = ssdpBanner.toLowerCase();
+            if (sLower.contains("roku")) return "Roku Streaming Device";
+            if (sLower.contains("linux")) return "Dispositivo IoT (Linux)";
+            if (sLower.contains("windows")) return "Máquina Windows (UPnP)";
+            if (sLower.contains("mac") || sLower.contains("apple")) return "Apple Device";
+            return "Dispositivo IoT (" + ssdpBanner + ")";
+        }
+
+        // 3. BANNER GRABBING HTTP (Para Enrutadores, Cámaras y Servidores)
+        if (isPortOpen(ip, 80) || isPortOpen(ip, 443)) {
+            String httpBanner = getHttpBanner(ip);
+            if (httpBanner != null) {
+                String bLower = httpBanner.toLowerCase();
+
+                if (bLower.contains("apache") || bLower.contains("nginx") || bLower.contains("lighthttpd")) return "Servidor Web (Linux)";
+                if (bLower.contains("iis") || bLower.contains("microsoft")) return "Servidor Windows (IIS)";
+                if (bLower.contains("router") || bLower.contains("microhttpd") || bLower.contains("tp-link") || bLower.contains("cisco")) return "Enrutador / Gateway Local";
+                if (bLower.contains("ipcam") || bLower.contains("dahua") || bLower.contains("hikvision")) return "Cámara de Seguridad IP";
+
+                return "Panel Web (" + httpBanner + ")"; // Imprime el Server real extraído
+            }
+            return "Panel Web / Enrutador Local";
+        }
 
         // ======================================================================
         // ARSENAL PESADO (Reglas extras - Comentado para auditoría profunda)
@@ -177,12 +204,66 @@ public class PingSweepEngine {
 
         return "Dispositivo Genérico";
     }
+
+    // ======================================================================
+    // MÉTODOS DE INYECCIÓN (TCP / UDP)
+    // ======================================================================
     private static boolean isPortOpen(String ip, int port) {
         try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(ip, port), 150);
+            socket.connect(new InetSocketAddress(ip, port), 200); // 200ms para ser rápidos
             return true;
         } catch (Exception e) {
             return false;
         }
+    }
+
+    private static String getHttpBanner(String ip) {
+        try {
+            URL url = new URL("http://" + ip);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(600); // Súper agresivo para no alargar el escaneo
+            conn.setReadTimeout(600);
+            conn.setRequestMethod("HEAD"); // Pide solo los metadatos, no descarga el HTML
+
+            String server = conn.getHeaderField("Server");
+            if (server != null && !server.trim().isEmpty()) {
+                return server;
+            }
+        } catch (Exception e) {}
+        return null;
+    }
+
+    private static String getSsdpBanner(String ip) {
+        try {
+            // El paquete mágico de descubrimiento UPnP
+            String query = "M-SEARCH * HTTP/1.1\r\n" +
+                    "Host: 239.255.255.250:1900\r\n" +
+                    "Man: \"ssdp:discover\"\r\n" +
+                    "ST: ssdp:all\r\n" +
+                    "MX: 1\r\n\r\n";
+            byte[] sendData = query.getBytes();
+            DatagramSocket socket = new DatagramSocket();
+            socket.setSoTimeout(600);
+
+            // Mandamos el misil directo a la IP objetivo por el puerto 1900
+            DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getByName(ip), 1900);
+            socket.send(sendPacket);
+
+            byte[] receiveData = new byte[1024];
+            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+            socket.receive(receivePacket);
+            socket.close();
+
+            String response = new String(receivePacket.getData(), 0, receivePacket.getLength());
+
+            // Filtramos la respuesta buscando la marca del servidor
+            String[] lines = response.split("\r\n");
+            for (String line : lines) {
+                if (line.toUpperCase().startsWith("SERVER:")) {
+                    return line.substring(7).trim(); // Cortamos la palabra "SERVER:"
+                }
+            }
+        } catch (Exception e) {}
+        return null;
     }
 }
