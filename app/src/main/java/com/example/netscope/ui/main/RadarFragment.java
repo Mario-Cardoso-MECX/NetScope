@@ -14,7 +14,6 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -28,6 +27,7 @@ import com.example.netscope.data.NetScopeDbHelper;
 import com.example.netscope.network.NsdResolver;
 import com.example.netscope.network.PingSweepEngine;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.snackbar.Snackbar;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -108,7 +108,6 @@ public class RadarFragment extends Fragment {
             });
         }
 
-        // Si ya hay datos (ej. giró la pantalla)
         if (!liveDeviceList.isEmpty()) {
             tvDeviceCount.setText(liveDeviceList.size() + " firmas en red");
             for(int i=0; i<liveDeviceList.size(); i++) dibujarPuntitoEnRadar();
@@ -122,23 +121,53 @@ public class RadarFragment extends Fragment {
         return view;
     }
 
+    // ==========================================================
+    // METODO PARA ALERTAS TÁCTICAS (SNACKBAR SUPERIOR)
+    // ==========================================================
+    private void mostrarAlertaTactica(String mensaje) {
+        if (getActivity() == null) return;
+
+        // Anclamos la alerta a la ventana raíz para que flote por encima de todo
+        View rootView = requireActivity().findViewById(android.R.id.content);
+
+        // Duración exacta: 2500 milisegundos (2.5 segundos)
+        Snackbar snackbar = Snackbar.make(rootView, mensaje, 2500);
+
+        // Diseño de la alerta
+        snackbar.setTextColor(androidx.core.content.ContextCompat.getColor(getContext(), R.color.neon_accent));
+        snackbar.setBackgroundTint(Color.parseColor("#161B22")); // Fondo oscuro
+
+        // Agregamos una "X" por si la quieren cerrar de inmediato
+        snackbar.setAction("X", v -> snackbar.dismiss());
+        snackbar.setActionTextColor(Color.parseColor("#888888"));
+
+        // Modificamos sus físicas para mandarla al techo de la pantalla
+        View snackbarView = snackbar.getView();
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) snackbarView.getLayoutParams();
+        params.gravity = android.view.Gravity.TOP;
+        params.topMargin = 120; // Margen para no tapar la barra de estado de tu teléfono
+        snackbarView.setLayoutParams(params);
+
+        // UX: Si el usuario toca cualquier parte de la alerta, se quita sola
+        snackbarView.setOnClickListener(v -> snackbar.dismiss());
+
+        snackbar.show();
+    }
+
     private void iniciarEscaneo() {
         List<String> ipsToScan = getIpsToScan();
 
         if (ipsToScan == null || ipsToScan.isEmpty()) {
-            Toast.makeText(getContext(), getString(R.string.toast_wifi_error), Toast.LENGTH_SHORT).show();
+            mostrarAlertaTactica(getString(R.string.toast_wifi_error));
             return;
         }
 
         liveDeviceList.clear();
-
-        // Usamos actualizarLista para restaurar la vista si estaba filtrada
         adapter.actualizarLista(liveDeviceList);
 
         tvDeviceCount.setText("0 firmas detectadas");
         dotsContainer.removeAllViews();
 
-        // Ocultamos el filtro mientras escanea
         if (spinnerFilter != null) spinnerFilter.setVisibility(View.GONE);
 
         btnStartScan.setEnabled(false);
@@ -156,7 +185,8 @@ public class RadarFragment extends Fragment {
             ivRadarSweep.startAnimation(rotate);
         }
 
-        Toast.makeText(getContext(), "Iniciando barrido táctico en " + ipsToScan.size() + " objetivos...", Toast.LENGTH_LONG).show();
+        // LLAMANDO A LA ALERTA TÁCTICA
+        mostrarAlertaTactica("Iniciando barrido táctico en " + ipsToScan.size() + " objetivos...");
 
         NsdResolver nsdResolver = new NsdResolver(getContext());
         nsdResolver.startDiscovery((ip, name) -> {
@@ -227,13 +257,13 @@ public class RadarFragment extends Fragment {
                         btnStartScan.setEnabled(true);
                         btnStartScan.setText(getString(R.string.btn_start_scan));
 
-                        // Mostramos las categorías que realmente se encontraron
                         actualizarFiltroDinamico();
 
                         NetScopeDbHelper dbHelper = new NetScopeDbHelper(getContext());
                         dbHelper.guardarEscaneoCompleto(liveDeviceList);
 
-                        Toast.makeText(getContext(), "Análisis completado. " + activeIps.size() + " firmas enlazadas.", Toast.LENGTH_LONG).show();
+                        // ALERTA TÁCTICA DE FINALIZACIÓN
+                        mostrarAlertaTactica("Análisis completado. " + activeIps.size() + " firmas enlazadas.");
 
                         nsdResolver.stopDiscovery();
                     });
@@ -242,16 +272,12 @@ public class RadarFragment extends Fragment {
         });
     }
 
-    // ==========================================================
-    // METODO PARA CREAR CATEGORÍAS SEGÚN LO ENCONTRADO
-    // ==========================================================
     private void actualizarFiltroDinamico() {
         categoriasActivas.clear();
         categoriasActivas.add("Todos");
 
-        boolean hayWindows = false, hayLinux = false, hayApple = false, hayAndroid = false, hayRouter = false, hayImpresora = false, hayTv = false;
+        boolean hayWindows = false, hayLinux = false, hayApple = false, hayRouter = false, hayImpresora = false, hayTv = false;
 
-        // Analizamos cada dispositivo para ver qué categorías activamos
         for (Device d : liveDeviceList) {
             String v = d.getVendor() != null ? d.getVendor().toLowerCase() : "genérico";
             String n = d.getName() != null ? d.getName().toLowerCase() : "";
@@ -259,26 +285,21 @@ public class RadarFragment extends Fragment {
 
             if (v.contains("windows") || n.contains("pc")) hayWindows = true;
             if (v.contains("linux") || v.contains("raspberry")) hayLinux = true;
-            // Usamos la validación corregida (anti-direcciones MAC)
             if (v.contains("apple") || n.contains("macbook") || n.contains("imac") || n.contains("iphone") || n.contains("ipad")) hayApple = true;
-            if (n.contains("android") || v.contains("cubot") || n.contains("phone")) hayAndroid = true;
             if (v.contains("enrutador") || n.contains("gateway") || ip.endsWith(".1") || ip.endsWith(".254")) hayRouter = true;
             if (v.contains("impresora")) hayImpresora = true;
             if (n.contains("tv") || v.contains("roku") || v.contains("cast") || v.contains("samsung")) hayTv = true;
         }
 
-        // Si existen en la red, los agregamos al menú
         if (hayRouter) categoriasActivas.add("Router");
         if (hayWindows) categoriasActivas.add("Windows");
         if (hayLinux) categoriasActivas.add("Linux");
         if (hayApple) categoriasActivas.add("Apple");
-        if (hayAndroid) categoriasActivas.add("Android");
         if (hayTv) categoriasActivas.add("Smart TV");
         if (hayImpresora) categoriasActivas.add("Impresora");
 
         spinnerAdapter.notifyDataSetChanged();
 
-        // Solo mostrar el menú si encontramos al menos UNA categoría aparte de "Todos"
         if (categoriasActivas.size() > 1 && spinnerFilter != null) {
             spinnerFilter.setVisibility(View.VISIBLE);
             spinnerFilter.setSelection(0);
@@ -287,7 +308,6 @@ public class RadarFragment extends Fragment {
 
     private void dibujarPuntitoEnRadar() {
         if (getContext() == null || dotsContainer.getWidth() == 0) return;
-
         if (dotsContainer.getChildCount() >= 20) return;
 
         int size = dotsContainer.getWidth();
@@ -316,9 +336,6 @@ public class RadarFragment extends Fragment {
         dotsContainer.addView(dot, params);
     }
 
-    // ==========================================================
-    // MOTOR DE FILTRADO (Con bug Anti-MAC parchado)
-    // ==========================================================
     private void aplicarFiltro(String categoria) {
         if (liveDeviceList.isEmpty()) return;
 
@@ -335,8 +352,6 @@ public class RadarFragment extends Fragment {
             } else if (categoria.equals("Linux") && (v.contains("linux") || v.contains("raspberry"))) {
                 filtrados.add(d);
             } else if (categoria.equals("Apple") && (v.contains("apple") || n.contains("macbook") || n.contains("imac") || n.contains("iphone") || n.contains("ipad"))) {
-                filtrados.add(d);
-            } else if (categoria.equals("Android") && (n.contains("android") || v.contains("cubot") || n.contains("phone"))) {
                 filtrados.add(d);
             } else if (categoria.equals("Router") && (v.contains("enrutador") || n.contains("gateway") || ip.endsWith(".1") || ip.endsWith(".254"))) {
                 filtrados.add(d);
