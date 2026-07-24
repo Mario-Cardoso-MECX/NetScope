@@ -19,6 +19,9 @@ import com.mecx.netscope.workers.ScanWorker;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import java.util.concurrent.TimeUnit;
 
+// Importación necesaria para poder usar la función de exportar
+import com.mecx.netscope.utils.ExportHelper;
+
 public class SettingsFragment extends Fragment {
 
     private SwitchCompat switchAutoScan, switchThreats, switchWol;
@@ -32,6 +35,15 @@ public class SettingsFragment extends Fragment {
         switchAutoScan = view.findViewById(R.id.switchAutoScan);
         switchThreats = view.findViewById(R.id.switchThreats);
         switchWol = view.findViewById(R.id.switchWol);
+
+        // AQUÍ ESTÁ LA CORRECCIÓN: Enlazamos el botón de exportar y le asignamos la acción
+        // Asegúrate de que el ID en tu archivo XML (fragment_settings.xml) sea exactamente "btnExport"
+        View btnExport = view.findViewById(R.id.btnExportReport);
+        if (btnExport != null) {
+            btnExport.setOnClickListener(v -> {
+                ExportHelper.exportDatabaseToImage(requireContext());
+            });
+        }
 
         sharedPreferences = requireActivity().getSharedPreferences("NetScopePrefs", Context.MODE_PRIVATE);
 
