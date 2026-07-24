@@ -7,6 +7,8 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,7 +43,16 @@ public class PermissionHelper {
         }
 
         if (!permissions.isEmpty()) {
-            ActivityCompat.requestPermissions(activity, permissions.toArray(new String[0]), PERMISSION_REQUEST_CODE);
+            // --- DIVULGACIÓN DESTACADA PARA GOOGLE PLAY ---
+            new MaterialAlertDialogBuilder(activity)
+                    .setTitle("Permisos Requeridos")
+                    .setMessage("NetScope requiere acceso a tu ubicación y dispositivos cercanos para poder mapear la red local y encontrar las direcciones IP. Tus datos no salen de este teléfono.")
+                    .setCancelable(false) // Obliga al usuario a interactuar con el botón
+                    .setPositiveButton("Entendido", (dialog, which) -> {
+                        // Una vez que el usuario lee y entiende, lanzamos la petición nativa de Android
+                        ActivityCompat.requestPermissions(activity, permissions.toArray(new String[0]), PERMISSION_REQUEST_CODE);
+                    })
+                    .show();
         }
     }
 }
